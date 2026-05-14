@@ -1,55 +1,31 @@
-export default function LibraryPage() {
-  const webtoons = [
-    {
-      title: "shadow room",
-      episode: "12화",
-    },
-    {
-      title: "silent night",
-      episode: "7화",
-    },
-    {
-      title: "memory archive",
-      episode: "21화",
-    },
-  ];
+import Link from "next/link";
 
+export default function Home() {
   return (
-    <main className="min-h-screen bg-black text-white p-10">
-      
-      <div className="mb-12">
-        <h1 className="text-5xl font-bold mb-3">
-          WEBTOON LIBRARY
-        </h1>
-
-        <p className="text-gray-500">
-          기억해두고 싶은 이야기들을 보관하는 공간
-        </p>
+    <main className="min-h-screen bg-black text-white flex flex-col items-center justify-center px-6">
+      <div className="absolute top-6 left-6 text-sm text-gray-500">
+        private archive
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        {webtoons.map((toon, index) => (
-          <div
-            key={index}
-            className="border border-white/10 rounded-3xl overflow-hidden hover:border-white transition duration-300 bg-white/5"
-          >
+      <h1 className="text-7xl font-bold tracking-widest mb-4">
+        hyun0001
+      </h1>
 
-            <div className="h-80 bg-gradient-to-b from-gray-800 to-black"></div>
+      <p className="text-gray-400 text-center mb-10 leading-relaxed">
+        나만의 웹툰 장면들을
+        <br />
+        조용히 보관하는 곳
+      </p>
 
-            <div className="p-6">
-              <h2 className="text-2xl font-semibold mb-2">
-                {toon.title}
-              </h2>
+      <Link href="/library">
+        <button className="border border-white px-8 py-3 rounded-full hover:bg-white hover:text-black transition duration-300">
+          ENTER
+        </button>
+      </Link>
 
-              <p className="text-gray-400">
-                최신화 · {toon.episode}
-              </p>
-            </div>
-
-          </div>
-        ))}
+      <div className="absolute bottom-6 text-xs text-gray-600">
+        private webtoon archive
       </div>
-
     </main>
   );
 }
