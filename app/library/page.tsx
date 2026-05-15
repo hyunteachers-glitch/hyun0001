@@ -31,6 +31,46 @@ export default function LibraryPage() {
     setWebtoons(data || []);
   }
 
+  async function editTitle(id: number, currentTitle: string) {
+    const newTitle = prompt("새 제목을 입력해줘.", currentTitle);
+
+    if (!newTitle || !newTitle.trim()) return;
+
+    const { error } = await supabase
+      .from("webtoons")
+      .update({ title: newTitle.trim() })
+      .eq("id", id);
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    getWebtoons();
+  }
+
+  async function deleteWebtoon(id: number) {
+    const ok = confirm("정말 이 웹툰을 삭제할까?");
+    if (!ok) return;
+
+    await supabase
+      .from("webtoon_images")
+      .delete()
+      .eq("webtoon_id", id);
+
+    const { error } = await supabase
+      .from("webtoons")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    getWebtoons();
+  }
+
   return (
     <main className="min-h-screen bg-black text-white px-8 py-10">
       <div className="flex items-center justify-between mb-12">
@@ -64,22 +104,46 @@ export default function LibraryPage() {
         }}
       >
         {webtoons.map((toon) => (
-          <Link key={toon.id} href={`/library/${toon.id}`}>
-            <div className="bg-white/5 border border-white/10 rounded-3xl overflow-hidden hover:scale-[1.02] transition cursor-pointer">
-              <div className="aspect-[3/4] bg-black">
+          <div
+            key={toon.id}
+            className="bg-white/5 border border-white/10 rounded-3xl overflow-hidden"
+          >
+            <Link href={`/library/${toon.id}`}>
+              <div className="aspect-[3/4] bg-black cursor-pointer">
                 <img
                   src={toon.cover_url}
                   alt=""
                   className="w-full h-full object-cover"
                 />
               </div>
+            </Link>
 
-              <div className="p-5">
-                <h2 className="text-2xl font-bold mb-2">{toon.title}</h2>
-                <p className="text-white/40">웹툰 보기</p>
+            <div className="p-5">
+              <Link href={`/library/${toon.id}`}>
+                <h2 className="text-2xl font-bold mb-2 hover:underline">
+                  {toon.title}
+                </h2>
+              </Link>
+
+              <p className="text-white/40 mb-5">웹툰 보기</p>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => editTitle(toon.id, toon.title)}
+                  className="flex-1 border border-white/40 py-2 rounded-xl hover:bg-white hover:text-black transition"
+                >
+                  제목 수정
+                </button>
+
+                <button
+                  onClick={() => deleteWebtoon(toon.id)}
+                  className="flex-1 border border-red-500 text-red-400 py-2 rounded-xl hover:bg-red-500 hover:text-white transition"
+                >
+                  삭제
+                </button>
               </div>
             </div>
-          </Link>
+          </div>
         ))}
       </div>
     </main>
