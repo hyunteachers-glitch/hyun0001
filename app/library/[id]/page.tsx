@@ -1,53 +1,64 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useParams } from "next/navigation";
+import { supabase } from "../../supabase";
+
+type WebtoonImage = {
+  id: number;
+  image_url: string;
+  image_order: number;
+};
 
 export default function WebtoonDetailPage() {
-  const episodes = [
-    { number: 1, title: "1화" },
-    { number: 2, title: "2화" },
-    { number: 3, title: "3화" },
-  ];
+  const params = useParams();
+  const webtoonId = Number(params.id);
+
+  const [images, setImages] = useState<WebtoonImage[]>([]);
+
+  useEffect(() => {
+    if (!webtoonId) return;
+    getWebtoonImages();
+  }, [webtoonId]);
+
+  async function getWebtoonImages() {
+    const { data, error } = await supabase
+      .from("webtoon_images")
+      .select("*")
+      .eq("webtoon_id", webtoonId)
+      .order("image_order", { ascending: true });
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    setImages(data || []);
+  }
 
   return (
-    <main className="min-h-screen bg-black text-white px-8 py-12">
+    <main className="min-h-screen bg-black text-white">
+      <div className="fixed top-0 left-0 right-0 z-50 bg-black/90 border-b border-white/10 px-6 py-4 flex justify-between items-center">
+        <Link href="/library" className="text-white/70 hover:text-white">
+          ← LIBRARY
+        </Link>
 
-      <Link
-        href="/library"
-        className="text-gray-500 hover:text-white"
-      >
-        ← 돌아가기
-      </Link>
-
-      <div className="mt-10 mb-12">
-
-        <div className="w-full h-80 bg-white/5 rounded-3xl mb-8"></div>
-
-        <h1 className="text-5xl font-bold mb-3">
-          shadow room
-        </h1>
-
-        <p className="text-gray-500">
-          어두운 방 안에 남겨진 장면들을 따라가는 이야기
-        </p>
-
+        <a href="#top" className="text-white/70 hover:text-white">
+          맨 위
+        </a>
       </div>
 
-      <h2 className="text-2xl font-bold mb-5">
-        회차 목록
-      </h2>
-
-      <div className="space-y-3">
-        {episodes.map((ep) => (
-          <Link
-            key={ep.number}
-            href={`/viewer/${ep.number}`}
-          >
-            <div className="border border-white/10 rounded-2xl p-5 hover:border-white transition cursor-pointer">
-              {ep.title}
-            </div>
-          </Link>
+      <div id="top" className="pt-20 pb-20 flex flex-col items-center">
+        {images.map((image) => (
+          <img
+            key={image.id}
+            src={image.image_url}
+            alt=""
+            className="w-full max-w-[720px] block"
+          />
         ))}
       </div>
-
     </main>
   );
 }

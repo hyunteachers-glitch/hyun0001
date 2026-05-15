@@ -19,7 +19,7 @@ export default function LoginPage() {
     if (error) {
       alert(error.message);
     } else {
-      alert("회원가입 성공! 이메일 인증이 필요할 수 있어.");
+      alert("회원가입 성공!");
     }
   };
 
@@ -33,13 +33,15 @@ export default function LoginPage() {
       alert(error.message);
     } else {
       alert("로그인 성공!");
-      router.push("/library");
+      router.push("/");
     }
   };
 
   return (
     <main className="min-h-screen bg-black text-white flex flex-col items-center justify-center px-6">
+
       <div className="w-full max-w-sm flex flex-col gap-4">
+
         <h1 className="text-4xl font-bold text-center mb-6">
           LOGIN
         </h1>
@@ -73,7 +75,9 @@ export default function LoginPage() {
         >
           SIGN UP
         </button>
+
       </div>
+
     </main>
   );
 }

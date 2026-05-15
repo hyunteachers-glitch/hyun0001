@@ -1,69 +1,42 @@
-"use client";
+import Link from "next/link";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-
-export default function Home() {
-  const [code, setCode] = useState("");
-  const [error, setError] = useState("");
-
-  const router = useRouter();
-
-  const handleEnter = () => {
-    if (code === "hyun0001") {
-      router.push("/library");
-    } else {
-      setError("ACCESS DENIED");
-    }
-  };
-
+export default function HomePage() {
   return (
-    <main className="min-h-screen bg-black text-white flex flex-col items-center justify-center px-6">
+    <main className="min-h-screen bg-black text-white flex flex-col items-center justify-center gap-10 px-6">
+      <div className="text-center">
+        <p className="text-white/40 mb-4">private webtoon archive</p>
 
-      <div className="absolute top-6 left-6 text-sm text-gray-500">
-        private archive
+        <h1 className="text-7xl font-bold mb-4">
+          hyun0001
+        </h1>
+
+        <p className="text-white/60 text-xl">
+          나만의 웹툰 장면들을 조용히 보관하는 곳
+        </p>
       </div>
 
-      <h1 className="text-7xl font-bold tracking-widest mb-4">
-        hyun0001
-      </h1>
-
-      <p className="text-gray-400 text-center mb-10 leading-relaxed">
-        authorized access only
-      </p>
-
-      <div className="w-full max-w-sm flex flex-col gap-4">
-
-        <input
-          type="password"
-          placeholder="ACCESS CODE"
-          value={code}
-          onChange={(e) => {
-            setCode(e.target.value);
-            setError("");
-          }}
-          className="bg-black border border-white/20 rounded-full px-6 py-4 text-center outline-none focus:border-white transition"
-        />
-
-        <button
-          onClick={handleEnter}
-          className="border border-white px-8 py-3 rounded-full hover:bg-white hover:text-black transition duration-300"
+      <div className="flex flex-col gap-5 w-full max-w-md">
+        <Link
+          href="/library"
+          className="border border-white rounded-2xl py-5 text-center text-2xl hover:bg-white hover:text-black transition"
         >
-          ENTER
-        </button>
+          LIBRARY
+        </Link>
 
-        {error && (
-          <p className="text-red-500 text-center text-sm">
-            {error}
-          </p>
-        )}
+        <Link
+          href="/upload"
+          className="border border-white rounded-2xl py-5 text-center text-2xl hover:bg-white hover:text-black transition"
+        >
+          UPLOAD
+        </Link>
 
+        <Link
+          href="/login"
+          className="border border-white/40 rounded-2xl py-5 text-center text-2xl hover:bg-white hover:text-black transition"
+        >
+          LOGIN
+        </Link>
       </div>
-
-      <div className="absolute bottom-6 text-xs text-gray-600">
-        private webtoon archive
-      </div>
-
     </main>
   );
 }
