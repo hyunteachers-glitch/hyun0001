@@ -40,9 +40,15 @@ export default function WebtoonDetailPage() {
   return (
     <main className="min-h-screen bg-black text-white">
       <div className="fixed top-0 left-0 right-0 z-50 bg-black/90 border-b border-white/10 px-6 py-4 flex justify-between items-center">
-        <Link href="/library" className="text-white/70 hover:text-white">
-          ← LIBRARY
-        </Link>
+        <div className="flex gap-4">
+          <Link href="/" className="text-white/70 hover:text-white">
+            HOME
+          </Link>
+
+          <Link href="/library" className="text-white/70 hover:text-white">
+            ← LIBRARY
+          </Link>
+        </div>
 
         <a href="#top" className="text-white/70 hover:text-white">
           맨 위
