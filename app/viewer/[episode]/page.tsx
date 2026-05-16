@@ -115,18 +115,26 @@ export default function ViewerPage() {
   return (
     <main className="min-h-screen bg-black text-white">
 
-      <div className="fixed top-0 left-0 right-0 z-50 bg-black/90 border-b border-white/10 backdrop-blur-md">
+      <div className="fixed top-0 left-0 right-0 z-50 bg-black/90 backdrop-blur-md border-b border-white/10">
 
         <div className="h-16 px-6 flex items-center justify-between">
 
-          <button
-            onClick={() => router.back()}
+          {/* 좌측 */}
+          <Link
+            href={`/library/${episode.webtoon_id}`}
             className="text-white/60 hover:text-white transition whitespace-nowrap"
           >
-            ← BACK
-          </button>
+            ← 작품으로
+          </Link>
 
-          <div className="flex items-center gap-8">
+          {/* 중앙 */}
+          <div className="absolute left-1/2 -translate-x-1/2 text-xl font-bold whitespace-nowrap">
+            {episode.episode_no}화 ·{" "}
+            {episode.title || "제목 없음"}
+          </div>
+
+          {/* 우측 */}
+          <div className="flex items-center gap-6">
 
             {previousEpisode ? (
               <Link
@@ -136,13 +144,8 @@ export default function ViewerPage() {
                 ← 이전화
               </Link>
             ) : (
-              <div className="w-[70px]" />
+              <div />
             )}
-
-            <div className="text-xl font-bold whitespace-nowrap">
-              {episode.episode_no}화 ·{" "}
-              {episode.title || "제목 없음"}
-            </div>
 
             {nextEpisode ? (
               <Link
@@ -152,17 +155,10 @@ export default function ViewerPage() {
                 다음화 →
               </Link>
             ) : (
-              <div className="w-[70px]" />
+              <div />
             )}
 
           </div>
-
-          <Link
-            href={`/library/${episode.webtoon_id}`}
-            className="text-white/60 hover:text-white transition whitespace-nowrap"
-          >
-            작품으로
-          </Link>
 
         </div>
 
@@ -187,6 +183,7 @@ export default function ViewerPage() {
 
       </div>
 
+      {/* 스크롤 버튼 */}
       <div className="fixed right-8 bottom-8 flex flex-col gap-3">
 
         <button
