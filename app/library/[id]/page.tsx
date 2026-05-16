@@ -141,12 +141,26 @@ export default function WebtoonDetailPage() {
     getEpisodes();
   }
 
-  async function editEpisode(episode: Episode) {
-    const newTitle = prompt("새 에피소드 제목 입력", episode.title);
+  async function editEpisodeTitle(episode: Episode) {
+    const newTitle = prompt("새 에피소드 이름 입력", episode.title);
     if (!newTitle) return;
 
+    const { error } = await supabase
+      .from("episodes")
+      .update({ title: newTitle })
+      .eq("id", episode.id);
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    getEpisodes();
+  }
+
+  async function editEpisodeNumber(episode: Episode) {
     const newEpisodeNoText = prompt(
-      "몇 화로 바꿀까? 숫자만 입력",
+      "새 화 번호 입력",
       String(episode.episode_no)
     );
 
@@ -161,10 +175,7 @@ export default function WebtoonDetailPage() {
 
     const { error } = await supabase
       .from("episodes")
-      .update({
-        title: newTitle,
-        episode_no: newEpisodeNo,
-      })
+      .update({ episode_no: newEpisodeNo })
       .eq("id", episode.id);
 
     if (error) {
@@ -294,12 +305,21 @@ export default function WebtoonDetailPage() {
                 </Link>
 
                 {episodeEditMode && (
-                  <button
-                    onClick={() => editEpisode(episode)}
-                    className="border border-white/40 px-4 py-2 rounded-xl hover:bg-white hover:text-black transition"
-                  >
-                    수정
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => editEpisodeTitle(episode)}
+                      className="border border-white/40 px-4 py-2 rounded-xl hover:bg-white hover:text-black transition"
+                    >
+                      이름
+                    </button>
+
+                    <button
+                      onClick={() => editEpisodeNumber(episode)}
+                      className="border border-white/40 px-4 py-2 rounded-xl hover:bg-white hover:text-black transition"
+                    >
+                      순서
+                    </button>
+                  </div>
                 )}
 
                 {episodeDeleteMode && (
