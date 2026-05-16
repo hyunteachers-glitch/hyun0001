@@ -58,31 +58,60 @@ export default function LibraryPage() {
         </div>
       </div>
 
-      <div
-        className="grid gap-6"
-        style={{
-          gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
-        }}
-      >
-        {webtoons.map((toon) => (
-          <Link
-            key={toon.id}
-            href={`/library/${toon.id}`}
-            className="bg-white/5 border border-white/10 rounded-3xl overflow-hidden hover:border-white/30 transition"
-          >
-            <div className="aspect-[3/4] bg-black">
-              <img
-                src={toon.cover_url}
-                alt=""
-                className="w-full h-full object-cover"
-              />
-            </div>
+      <div className="flex justify-center">
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(8, 120px)",
+            gap: "14px",
+          }}
+        >
+          {webtoons.map((toon) => (
+            <Link
+              key={toon.id}
+              href={`/library/${toon.id}`}
+              style={{
+                width: "120px",
+                textDecoration: "none",
+                color: "white",
+              }}
+            >
+              <div
+                style={{
+                  width: "120px",
+                  height: "160px",
+                  borderRadius: "10px",
+                  overflow: "hidden",
+                  background: "rgba(255,255,255,0.05)",
+                  border: "1px solid rgba(255,255,255,0.12)",
+                }}
+              >
+                <img
+                  src={toon.cover_url}
+                  alt=""
+                  style={{
+                    width: "120px",
+                    height: "160px",
+                    objectFit: "cover",
+                    display: "block",
+                  }}
+                />
+              </div>
 
-            <div className="p-4">
-              <h2 className="text-xl font-bold">{toon.title}</h2>
-            </div>
-          </Link>
-        ))}
+              <h2
+                style={{
+                  fontSize: "14px",
+                  fontWeight: "bold",
+                  marginTop: "8px",
+                  lineHeight: "1.3",
+                  wordBreak: "keep-all",
+                }}
+              >
+                {toon.title}
+              </h2>
+            </Link>
+          ))}
+        </div>
       </div>
     </main>
   );
