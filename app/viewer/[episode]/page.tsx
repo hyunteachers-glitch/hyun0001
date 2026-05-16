@@ -25,11 +25,38 @@ export default function ViewerPage() {
   const [episode, setEpisode] = useState<Episode | null>(null);
   const [episodes, setEpisodes] = useState<Episode[]>([]);
   const [images, setImages] = useState<EpisodeImage[]>([]);
+  const [showHeader, setShowHeader] = useState(true);
 
   useEffect(() => {
     if (!episodeId) return;
     loadViewer();
   }, [episodeId]);
+
+  useEffect(() => {
+    let lastScrollY = window.scrollY;
+
+    function handleScroll() {
+      const currentScrollY = window.scrollY;
+      const windowHeight = window.innerHeight;
+      const documentHeight = document.documentElement.scrollHeight;
+
+      const isAtTop = currentScrollY <= 10;
+      const isAtBottom = currentScrollY + windowHeight >= documentHeight - 10;
+
+      if (isAtTop || isAtBottom) {
+        setShowHeader(true);
+      } else if (currentScrollY > lastScrollY) {
+        setShowHeader(false);
+      } else {
+        setShowHeader(true);
+      }
+
+      lastScrollY = currentScrollY;
+    }
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   async function loadViewer() {
     const { data: episodeData, error: episodeError } = await supabase
@@ -94,7 +121,11 @@ export default function ViewerPage() {
 
   return (
     <main className="min-h-screen bg-black text-white">
-      <div className="fixed top-0 left-0 right-0 z-50 bg-black/90 backdrop-blur-md border-b border-white/10">
+      <div
+        className={`fixed top-0 left-0 right-0 z-50 bg-black/90 backdrop-blur-md border-b border-white/10 transition-transform duration-300 ${
+          showHeader ? "translate-y-0" : "-translate-y-full"
+        }`}
+      >
         <div className="hidden md:flex h-16 px-6 items-center justify-between">
           <Link
             href={`/library/${episode.webtoon_id}`}
@@ -138,9 +169,7 @@ export default function ViewerPage() {
             </Link>
           </div>
 
-          <div className="text-center font-bold">
-            {episode.episode_no}화
-          </div>
+          <div className="text-center font-bold">{episode.episode_no}화</div>
 
           <div className="text-right flex justify-end gap-3">
             {previousEpisode && (
