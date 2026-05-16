@@ -9,7 +9,7 @@ type WebtoonItem = {
   title: string;
   cover_url: string;
   deleted: boolean;
-  updated_at: string;
+  updated_at: string | null;
 };
 
 export default function LibraryPage() {
@@ -24,15 +24,21 @@ export default function LibraryPage() {
     const { data, error } = await supabase
       .from("webtoons")
       .select("*")
-      .eq("deleted", false)
-      .order("updated_at", { ascending: false });
+      .eq("deleted", false);
 
     if (error) {
       alert(error.message);
       return;
     }
 
-    setWebtoons(data || []);
+    const sorted = (data || []).sort((a, b) => {
+      const aTime = a.updated_at ? new Date(a.updated_at).getTime() : 0;
+      const bTime = b.updated_at ? new Date(b.updated_at).getTime() : 0;
+
+      return bTime - aTime;
+    });
+
+    setWebtoons(sorted);
   }
 
   const filteredWebtoons = webtoons.filter((toon) =>
@@ -84,10 +90,6 @@ export default function LibraryPage() {
           }}
         />
       </div>
-
-      {filteredWebtoons.length === 0 && (
-        <p className="text-white/40 text-center">검색 결과가 없어.</p>
-      )}
 
       <div className="flex justify-center">
         <div
