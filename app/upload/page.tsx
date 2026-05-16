@@ -19,6 +19,7 @@ export default function UploadPage() {
   const [images, setImages] = useState<ImageItem[]>([]);
   const [webtoons, setWebtoons] = useState<WebtoonItem[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   const [mode, setMode] = useState<"gallery" | "work" | "episode" | "delete">("gallery");
 
@@ -223,6 +224,27 @@ export default function UploadPage() {
     setMode("gallery");
   }
 
+  function handleImageClick(item: ImageItem) {
+    if (mode === "gallery") {
+      setPreviewImage(item.url);
+      return;
+    }
+
+    if (mode === "work") {
+      setCoverUrl(item.url);
+      return;
+    }
+
+    if (mode === "episode") {
+      toggleEpisodeImage(item.url);
+      return;
+    }
+
+    if (mode === "delete") {
+      deleteImage(item.id, item.url);
+    }
+  }
+
   return (
     <main style={{ minHeight: "100vh", background: "black", color: "white", padding: "32px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "28px" }}>
@@ -242,6 +264,10 @@ export default function UploadPage() {
             <input type="file" onChange={handleUpload} style={{ display: "none" }} />
           </label>
 
+          <button onClick={() => setMode("gallery")} style={mode === "gallery" ? activeButtonStyle : buttonStyle}>
+            갤러리
+          </button>
+
           <button onClick={() => setMode("work")} style={mode === "work" ? activeButtonStyle : buttonStyle}>
             작품 생성
           </button>
@@ -260,12 +286,7 @@ export default function UploadPage() {
 
       {mode === "work" && (
         <div style={formBoxStyle}>
-          <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="작품 이름"
-            style={inputStyle}
-          />
+          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="작품 이름" style={inputStyle} />
 
           <textarea
             value={description}
@@ -286,11 +307,7 @@ export default function UploadPage() {
 
       {mode === "episode" && (
         <div style={formBoxStyle}>
-          <select
-            value={selectedWebtoonId}
-            onChange={(e) => setSelectedWebtoonId(e.target.value)}
-            style={inputStyle}
-          >
+          <select value={selectedWebtoonId} onChange={(e) => setSelectedWebtoonId(e.target.value)} style={inputStyle}>
             <option value="">작품 선택</option>
             {webtoons.map((toon) => (
               <option key={toon.id} value={toon.id}>
@@ -332,11 +349,7 @@ export default function UploadPage() {
           return (
             <button
               key={item.id}
-              onClick={() => {
-                if (mode === "work") setCoverUrl(item.url);
-                if (mode === "episode") toggleEpisodeImage(item.url);
-                if (mode === "delete") deleteImage(item.id, item.url);
-              }}
+              onClick={() => handleImageClick(item)}
               style={{
                 position: "relative",
                 width: "120px",
@@ -374,6 +387,24 @@ export default function UploadPage() {
           );
         })}
       </div>
+
+      {previewImage && (
+        <div style={previewOverlayStyle}>
+          <button onClick={() => setPreviewImage(null)} style={closeButtonStyle}>
+            닫기
+          </button>
+
+          <img
+            src={previewImage}
+            alt=""
+            style={{
+              maxWidth: "90vw",
+              maxHeight: "90vh",
+              objectFit: "contain",
+            }}
+          />
+        </div>
+      )}
     </main>
   );
 }
@@ -460,4 +491,27 @@ const deleteOverlayStyle = {
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
+};
+
+const previewOverlayStyle = {
+  position: "fixed" as const,
+  inset: 0,
+  background: "rgba(0,0,0,0.92)",
+  zIndex: 9999,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: "24px",
+};
+
+const closeButtonStyle = {
+  position: "absolute" as const,
+  top: "24px",
+  right: "24px",
+  border: "1px solid white",
+  borderRadius: "999px",
+  padding: "10px 20px",
+  background: "black",
+  color: "white",
+  cursor: "pointer",
 };
