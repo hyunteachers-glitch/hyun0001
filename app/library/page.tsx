@@ -10,6 +10,7 @@ type WebtoonItem = {
   cover_url: string;
   deleted: boolean;
   updated_at: string | null;
+  created_at?: string | null;
 };
 
 export default function LibraryPage() {
@@ -33,7 +34,6 @@ export default function LibraryPage() {
 
     checkMobile();
     window.addEventListener("resize", checkMobile);
-
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
@@ -111,23 +111,36 @@ export default function LibraryPage() {
     getTrashWebtoons();
   }
 
+  function getTime(toon: WebtoonItem) {
+    return new Date(toon.updated_at || toon.created_at || 0).getTime();
+  }
+
+  function startsWithNumber(title: string) {
+    return /^[0-9]/.test(title.trim());
+  }
+
   const filteredWebtoons = useMemo(() => {
     let result = webtoons.filter((toon) =>
       toon.title.toLowerCase().includes(search.toLowerCase())
     );
 
     if (sortType === "latest") {
-      result = [...result].sort((a, b) => {
-        const aTime = a.updated_at ? new Date(a.updated_at).getTime() : 0;
-        const bTime = b.updated_at ? new Date(b.updated_at).getTime() : 0;
-        return bTime - aTime;
-      });
+      result = [...result].sort((a, b) => getTime(b) - getTime(a));
     }
 
     if (sortType === "abc") {
-      result = [...result].sort((a, b) =>
-        a.title.localeCompare(b.title, "ko")
-      );
+      result = [...result].sort((a, b) => {
+        const aNumber = startsWithNumber(a.title);
+        const bNumber = startsWithNumber(b.title);
+
+        if (aNumber && !bNumber) return 1;
+        if (!aNumber && bNumber) return -1;
+
+        return a.title.localeCompare(b.title, "ko", {
+          numeric: true,
+          sensitivity: "base",
+        });
+      });
     }
 
     return result;
@@ -158,17 +171,11 @@ export default function LibraryPage() {
         </div>
 
         <div className="flex gap-2">
-          <Link
-            href="/"
-            className="border border-white px-4 py-2 rounded-full hover:bg-white hover:text-black transition"
-          >
+          <Link href="/" className="border border-white px-4 py-2 rounded-full hover:bg-white hover:text-black transition">
             HOME
           </Link>
 
-          <Link
-            href="/upload"
-            className="border border-white px-4 py-2 rounded-full hover:bg-white hover:text-black transition"
-          >
+          <Link href="/upload" className="border border-white px-4 py-2 rounded-full hover:bg-white hover:text-black transition">
             UPLOAD
           </Link>
         </div>
@@ -216,10 +223,6 @@ export default function LibraryPage() {
           최신순
         </button>
       </div>
-
-      {filteredWebtoons.length === 0 && (
-        <p className="text-white/40 text-center">검색 결과가 없어.</p>
-      )}
 
       <div className="flex justify-center">
         <div style={gridStyle}>
