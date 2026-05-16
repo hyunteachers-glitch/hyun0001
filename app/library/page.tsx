@@ -13,6 +13,7 @@ type WebtoonItem = {
 
 export default function LibraryPage() {
   const [webtoons, setWebtoons] = useState<WebtoonItem[]>([]);
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     getWebtoons();
@@ -33,9 +34,13 @@ export default function LibraryPage() {
     setWebtoons(data || []);
   }
 
+  const filteredWebtoons = webtoons.filter((toon) =>
+    toon.title.toLowerCase().includes(search.toLowerCase())
+  );
+
   return (
     <main className="min-h-screen bg-black text-white px-8 py-10">
-      <div className="flex justify-between items-center mb-12">
+      <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-5xl font-bold mb-3">LIBRARY</h1>
           <p className="text-white/50">웹툰 보관 공간</p>
@@ -58,6 +63,33 @@ export default function LibraryPage() {
         </div>
       </div>
 
+      <div className="mb-10 flex justify-center">
+        <input
+          type="text"
+          placeholder="작품 검색"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={{
+            width: "420px",
+            maxWidth: "100%",
+            border: "1px solid rgba(255,255,255,0.25)",
+            borderRadius: "999px",
+            padding: "14px 22px",
+            background: "black",
+            color: "white",
+            fontSize: "16px",
+            outline: "none",
+            textAlign: "center",
+          }}
+        />
+      </div>
+
+      {filteredWebtoons.length === 0 && (
+        <p className="text-white/40 text-center">
+          검색 결과가 없어.
+        </p>
+      )}
+
       <div className="flex justify-center">
         <div
           style={{
@@ -66,7 +98,7 @@ export default function LibraryPage() {
             gap: "14px",
           }}
         >
-          {webtoons.map((toon) => (
+          {filteredWebtoons.map((toon) => (
             <Link
               key={toon.id}
               href={`/library/${toon.id}`}
