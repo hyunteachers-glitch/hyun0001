@@ -9,6 +9,7 @@ type WebtoonItem = {
   title: string;
   cover_url: string;
   deleted: boolean;
+  updated_at: string;
 };
 
 export default function LibraryPage() {
@@ -24,7 +25,7 @@ export default function LibraryPage() {
       .from("webtoons")
       .select("*")
       .eq("deleted", false)
-      .order("id", { ascending: false });
+      .order("updated_at", { ascending: false });
 
     if (error) {
       alert(error.message);
@@ -85,9 +86,7 @@ export default function LibraryPage() {
       </div>
 
       {filteredWebtoons.length === 0 && (
-        <p className="text-white/40 text-center">
-          검색 결과가 없어.
-        </p>
+        <p className="text-white/40 text-center">검색 결과가 없어.</p>
       )}
 
       <div className="flex justify-center">
