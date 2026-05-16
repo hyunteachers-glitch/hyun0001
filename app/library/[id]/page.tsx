@@ -170,7 +170,7 @@ export default function WebtoonDetailPage() {
           {episodes.map((episode) => (
             <Link
               key={episode.id}
-              href={`/episode/${episode.id}`}
+              href={`/viewer/${episode.id}`}
               className="border border-white/10 rounded-2xl px-6 py-5 hover:bg-white hover:text-black transition"
             >
               <div className="flex items-center justify-between">
