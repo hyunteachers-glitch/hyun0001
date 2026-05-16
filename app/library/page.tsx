@@ -34,6 +34,7 @@ export default function LibraryPage() {
 
     checkMobile();
     window.addEventListener("resize", checkMobile);
+
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
@@ -146,21 +147,103 @@ export default function LibraryPage() {
     return result;
   }, [webtoons, search, sortType]);
 
-  const totalPages = Math.max(
-    1,
-    Math.ceil(filteredWebtoons.length / itemsPerPage)
-  );
+  const totalPages = Math.max(1, Math.ceil(filteredWebtoons.length / itemsPerPage));
 
   const pagedWebtoons = filteredWebtoons.slice(
     (page - 1) * itemsPerPage,
     page * itemsPerPage
   );
 
+  const cardWidth = isMobile ? 78 : 170;
+  const cardHeight = isMobile ? 112 : 245;
+
   const gridStyle = {
     display: "grid",
-    gridTemplateColumns: isMobile ? "repeat(4, 72px)" : "repeat(6, 150px)",
-    gap: isMobile ? "10px" : "16px",
+    gridTemplateColumns: isMobile ? "repeat(4, 78px)" : "repeat(6, 170px)",
+    gap: isMobile ? "12px" : "20px",
   };
+
+  function Card({ toon, trash = false }: { toon: WebtoonItem; trash?: boolean }) {
+    return (
+      <div style={{ width: cardWidth, color: "white" }}>
+        {!trash ? (
+          <Link
+            href={`/library/${toon.id}`}
+            style={{ textDecoration: "none", color: "white" }}
+          >
+            <Thumbnail toon={toon} trash={false} />
+            <Title title={toon.title} />
+          </Link>
+        ) : (
+          <>
+            <Thumbnail toon={toon} trash />
+            <Title title={toon.title} />
+
+            <div className="mt-2 flex flex-col gap-1">
+              <button
+                onClick={() => restoreWebtoon(toon.id)}
+                className="border border-white/30 text-white text-[10px] md:text-xs py-1 rounded-lg hover:bg-white hover:text-black transition"
+              >
+                복구
+              </button>
+
+              <button
+                onClick={() => permanentDeleteWebtoon(toon.id)}
+                className="border border-red-500 text-red-400 text-[10px] md:text-xs py-1 rounded-lg hover:bg-red-500 hover:text-white transition"
+              >
+                영구삭제
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    );
+  }
+
+  function Thumbnail({ toon, trash }: { toon: WebtoonItem; trash: boolean }) {
+    return (
+      <div
+        style={{
+          width: cardWidth,
+          height: cardHeight,
+          borderRadius: "10px",
+          overflow: "hidden",
+          background: "rgba(255,255,255,0.05)",
+          border: trash
+            ? "1px solid rgba(239,68,68,0.5)"
+            : "1px solid rgba(255,255,255,0.12)",
+          opacity: trash ? 0.65 : 1,
+        }}
+      >
+        <img
+          src={toon.cover_url}
+          alt=""
+          style={{
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            display: "block",
+          }}
+        />
+      </div>
+    );
+  }
+
+  function Title({ title }: { title: string }) {
+    return (
+      <h2
+        style={{
+          fontSize: isMobile ? "11px" : "15px",
+          fontWeight: "bold",
+          marginTop: "8px",
+          lineHeight: "1.35",
+          wordBreak: "keep-all",
+        }}
+      >
+        {title}
+      </h2>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-black text-white px-5 md:px-8 py-10">
@@ -171,11 +254,17 @@ export default function LibraryPage() {
         </div>
 
         <div className="flex gap-2">
-          <Link href="/" className="border border-white px-4 py-2 rounded-full hover:bg-white hover:text-black transition">
+          <Link
+            href="/"
+            className="border border-white px-4 py-2 rounded-full hover:bg-white hover:text-black transition"
+          >
             HOME
           </Link>
 
-          <Link href="/upload" className="border border-white px-4 py-2 rounded-full hover:bg-white hover:text-black transition">
+          <Link
+            href="/upload"
+            className="border border-white px-4 py-2 rounded-full hover:bg-white hover:text-black transition"
+          >
             UPLOAD
           </Link>
         </div>
@@ -227,49 +316,7 @@ export default function LibraryPage() {
       <div className="flex justify-center">
         <div style={gridStyle}>
           {pagedWebtoons.map((toon) => (
-            <Link
-              key={toon.id}
-              href={`/library/${toon.id}`}
-              style={{
-                width: isMobile ? "72px" : "150px",
-                textDecoration: "none",
-                color: "white",
-              }}
-            >
-              <div
-                style={{
-                  width: isMobile ? "72px" : "150px",
-                  height: isMobile ? "96px" : "200px",
-                  borderRadius: "10px",
-                  overflow: "hidden",
-                  background: "rgba(255,255,255,0.05)",
-                  border: "1px solid rgba(255,255,255,0.12)",
-                }}
-              >
-                <img
-                  src={toon.cover_url}
-                  alt=""
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    objectFit: "cover",
-                    display: "block",
-                  }}
-                />
-              </div>
-
-              <h2
-                style={{
-                  fontSize: isMobile ? "11px" : "14px",
-                  fontWeight: "bold",
-                  marginTop: "8px",
-                  lineHeight: "1.3",
-                  wordBreak: "keep-all",
-                }}
-              >
-                {toon.title}
-              </h2>
-            </Link>
+            <Card key={toon.id} toon={toon} />
           ))}
         </div>
       </div>
@@ -320,64 +367,7 @@ export default function LibraryPage() {
             <div className="flex justify-center">
               <div style={gridStyle}>
                 {trashWebtoons.map((toon) => (
-                  <div
-                    key={toon.id}
-                    style={{
-                      width: isMobile ? "72px" : "150px",
-                      color: "white",
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: isMobile ? "72px" : "150px",
-                        height: isMobile ? "96px" : "200px",
-                        borderRadius: "10px",
-                        overflow: "hidden",
-                        background: "rgba(255,255,255,0.05)",
-                        border: "1px solid rgba(239,68,68,0.5)",
-                        opacity: 0.65,
-                      }}
-                    >
-                      <img
-                        src={toon.cover_url}
-                        alt=""
-                        style={{
-                          width: "100%",
-                          height: "100%",
-                          objectFit: "cover",
-                          display: "block",
-                        }}
-                      />
-                    </div>
-
-                    <h3
-                      style={{
-                        fontSize: isMobile ? "11px" : "14px",
-                        fontWeight: "bold",
-                        marginTop: "8px",
-                        lineHeight: "1.3",
-                        wordBreak: "keep-all",
-                      }}
-                    >
-                      {toon.title}
-                    </h3>
-
-                    <div className="mt-2 flex flex-col gap-1">
-                      <button
-                        onClick={() => restoreWebtoon(toon.id)}
-                        className="border border-white/30 text-white text-[10px] md:text-xs py-1 rounded-lg hover:bg-white hover:text-black transition"
-                      >
-                        복구
-                      </button>
-
-                      <button
-                        onClick={() => permanentDeleteWebtoon(toon.id)}
-                        className="border border-red-500 text-red-400 text-[10px] md:text-xs py-1 rounded-lg hover:bg-red-500 hover:text-white transition"
-                      >
-                        영구삭제
-                      </button>
-                    </div>
-                  </div>
+                  <Card key={toon.id} toon={toon} trash />
                 ))}
               </div>
             </div>
