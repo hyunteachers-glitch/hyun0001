@@ -33,6 +33,8 @@ export default function UploadPage() {
   const [selectedWebtoonId, setSelectedWebtoonId] = useState("");
   const [selectedImages, setSelectedImages] = useState<string[]>([]);
 
+  const [deleteTargets, setDeleteTargets] = useState<number[]>([]);
+
   useEffect(() => {
     getImages();
     getWebtoons();
@@ -95,11 +97,7 @@ export default function UploadPage() {
 
       const { error: dbError } = await supabase
         .from("images")
-        .insert([
-          {
-            url: publicUrl,
-          },
-        ]);
+        .insert([{ url: publicUrl }]);
 
       if (dbError) {
         alert(dbError.message);
@@ -107,32 +105,54 @@ export default function UploadPage() {
     }
 
     setUploading(false);
-
     getImages();
   }
 
-  async function deleteImage(id: number, url: string) {
-    const ok = confirm("정말 삭제할까?");
+  function toggleDeleteTarget(id: number) {
+    if (deleteTargets.includes(id)) {
+      setDeleteTargets(
+        deleteTargets.filter((target) => target !== id)
+      );
+    } else {
+      setDeleteTargets([...deleteTargets, id]);
+    }
+  }
+
+  async function completeDelete() {
+    if (deleteTargets.length === 0) {
+      alert("삭제할 사진을 선택해줘.");
+      return;
+    }
+
+    const ok = confirm(
+      `${deleteTargets.length}개의 사진을 삭제할까?`
+    );
+
     if (!ok) return;
 
     try {
-      const filePath = url.split("/webtoon/")[1];
+      const targetImages = images.filter((image) =>
+        deleteTargets.includes(image.id)
+      );
 
-      if (filePath) {
-        await supabase.storage
-          .from("webtoon")
-          .remove([filePath]);
+      for (const image of targetImages) {
+        const filePath =
+          image.url.split("/webtoon/")[1];
+
+        if (filePath) {
+          await supabase.storage
+            .from("webtoon")
+            .remove([filePath]);
+        }
+
+        await supabase
+          .from("images")
+          .delete()
+          .eq("id", image.id);
       }
 
-      const { error } = await supabase
-        .from("images")
-        .delete()
-        .eq("id", id);
-
-      if (error) {
-        alert(error.message);
-        return;
-      }
+      setDeleteTargets([]);
+      setMode("gallery");
 
       getImages();
     } catch (err) {
@@ -281,7 +301,7 @@ export default function UploadPage() {
     }
 
     if (mode === "delete") {
-      deleteImage(item.id, item.url);
+      toggleDeleteTarget(item.id);
     }
   }
 
@@ -349,20 +369,23 @@ export default function UploadPage() {
           </button>
 
           <button
-            onClick={() =>
-              setMode(
-                mode === "delete"
-                  ? "gallery"
-                  : "delete"
-              )
-            }
+            onClick={() => {
+              if (mode === "delete") {
+                completeDelete();
+              } else {
+                setMode("delete");
+                setDeleteTargets([]);
+              }
+            }}
             className={
               mode === "delete"
                 ? deleteActiveClass
                 : deleteButtonClass
             }
           >
-            삭제
+            {mode === "delete"
+              ? "삭제 완료"
+              : "삭제"}
           </button>
         </div>
       </div>
@@ -454,6 +477,9 @@ export default function UploadPage() {
           const order =
             selectedImages.indexOf(item.url) + 1;
 
+          const deleteSelected =
+            deleteTargets.includes(item.id);
+
           return (
             <button
               key={item.id}
@@ -461,7 +487,9 @@ export default function UploadPage() {
                 handleImageClick(item)
               }
               className={`relative aspect-square overflow-hidden rounded-xl ${
-                isCover || selected
+                isCover ||
+                selected ||
+                deleteSelected
                   ? "border-2 border-red-500"
                   : "border border-white/15"
               }`}
@@ -486,11 +514,16 @@ export default function UploadPage() {
                   </div>
                 )}
 
-              {mode === "delete" && (
-                <div className="absolute inset-0 bg-black/55 text-white text-4xl font-bold flex items-center justify-center">
-                  ×
-                </div>
-              )}
+              {deleteSelected &&
+                mode === "delete" && (
+                  <div className="absolute top-1 right-1 w-7 h-7 bg-red-500 text-white flex items-center justify-center font-bold">
+                    {
+                      deleteTargets.indexOf(
+                        item.id
+                      ) + 1
+                    }
+                  </div>
+                )}
             </button>
           );
         })}
