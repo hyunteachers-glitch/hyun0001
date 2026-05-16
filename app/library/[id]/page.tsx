@@ -15,7 +15,7 @@ type Webtoon = {
 
 type Episode = {
   id: number;
-  title: string;
+  title: string | null;
   episode_no: number;
   deleted: boolean;
 };
@@ -64,7 +64,8 @@ export default function WebtoonDetailPage() {
       .select("*")
       .eq("webtoon_id", webtoonId)
       .eq("deleted", false)
-      .order("episode_no", { ascending: true });
+      .order("episode_no", { ascending: true })
+      .order("id", { ascending: true });
 
     if (error) {
       alert(error.message);
@@ -136,8 +137,8 @@ export default function WebtoonDetailPage() {
 
     episodes.forEach((episode) => {
       initial[episode.id] = {
-        title: episode.title,
-        episode_no: String(episode.episode_no),
+        title: episode.title ?? "",
+        episode_no: String(episode.episode_no ?? ""),
       };
     });
 
@@ -165,8 +166,8 @@ export default function WebtoonDetailPage() {
     setEditedEpisodes((prev) => ({
       ...prev,
       [id]: {
-        ...prev[id],
         title: value,
+        episode_no: prev[id]?.episode_no ?? "",
       },
     }));
   }
@@ -175,7 +176,7 @@ export default function WebtoonDetailPage() {
     setEditedEpisodes((prev) => ({
       ...prev,
       [id]: {
-        ...prev[id],
+        title: prev[id]?.title ?? "",
         episode_no: value,
       },
     }));
@@ -192,13 +193,13 @@ export default function WebtoonDetailPage() {
   async function completeEpisodeEdit() {
     for (const episode of episodes) {
       const edited = editedEpisodes[episode.id];
-
       if (!edited) continue;
 
+      const newTitle = edited.title;
       const newEpisodeNo = Number(edited.episode_no);
 
-      if (!edited.title.trim()) {
-        alert("에피소드 이름은 비울 수 없어.");
+      if (edited.episode_no.trim() === "") {
+        alert("화 번호는 비울 수 없어.");
         return;
       }
 
@@ -210,7 +211,7 @@ export default function WebtoonDetailPage() {
       const { error } = await supabase
         .from("episodes")
         .update({
-          title: edited.title.trim(),
+          title: newTitle,
           episode_no: newEpisodeNo,
         })
         .eq("id", episode.id);
@@ -364,16 +365,16 @@ export default function WebtoonDetailPage() {
               <div
                 key={episode.id}
                 className={`border rounded-2xl px-6 py-5 ${
-                  isDeleteTarget
-                    ? "border-red-500 bg-red-500/10"
-                    : "border-white/10"
+                  isDeleteTarget ? "border-red-500 bg-red-500/10" : "border-white/10"
                 }`}
               >
                 <div className="flex items-center justify-between gap-4">
                   {!episodeEditMode && !episodeDeleteMode && (
                     <Link href={`/viewer/${episode.id}`} className="flex-1">
                       <div className="flex items-center justify-between">
-                        <div className="text-xl font-bold">{episode.title}</div>
+                        <div className="text-xl font-bold">
+                          {episode.title || "제목 없는 에피소드"}
+                        </div>
                         <div className="text-sm opacity-60">
                           {episode.episode_no}화
                         </div>
@@ -384,21 +385,25 @@ export default function WebtoonDetailPage() {
                   {episodeEditMode && edited && (
                     <div className="flex flex-1 gap-3 items-center">
                       <input
+                        type="text"
                         value={edited.title}
                         onChange={(e) =>
                           updateEditedEpisodeTitle(episode.id, e.target.value)
                         }
                         placeholder="에피소드 이름"
-                        className="flex-1 bg-black border border-white/20 rounded-xl px-4 py-3 outline-none"
+                        className="flex-1 bg-black border border-white/20 rounded-xl px-4 py-3 outline-none text-white"
                       />
 
                       <input
+                        type="number"
+                        min="1"
+                        step="1"
                         value={edited.episode_no}
                         onChange={(e) =>
                           updateEditedEpisodeNo(episode.id, e.target.value)
                         }
                         placeholder="화 번호"
-                        className="w-28 bg-black border border-white/20 rounded-xl px-4 py-3 outline-none text-center"
+                        className="w-28 bg-black border border-white/20 rounded-xl px-4 py-3 outline-none text-center text-white"
                       />
                     </div>
                   )}
@@ -409,7 +414,9 @@ export default function WebtoonDetailPage() {
                       className="flex-1 text-left"
                     >
                       <div className="flex items-center justify-between">
-                        <div className="text-xl font-bold">{episode.title}</div>
+                        <div className="text-xl font-bold">
+                          {episode.title || "제목 없는 에피소드"}
+                        </div>
                         <div className="text-sm opacity-60">
                           {episode.episode_no}화
                         </div>
