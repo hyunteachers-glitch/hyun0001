@@ -34,7 +34,6 @@ export default function LibraryPage() {
 
     checkMobile();
     window.addEventListener("resize", checkMobile);
-
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
@@ -154,8 +153,7 @@ export default function LibraryPage() {
     page * itemsPerPage
   );
 
-  const cardWidth = isMobile ? 78 : 170;
-  const cardHeight = isMobile ? 112 : 245;
+  const cardSize = isMobile ? 78 : 170;
 
   const gridStyle = {
     display: "grid",
@@ -163,49 +161,12 @@ export default function LibraryPage() {
     gap: isMobile ? "12px" : "20px",
   };
 
-  function Card({ toon, trash = false }: { toon: WebtoonItem; trash?: boolean }) {
-    return (
-      <div style={{ width: cardWidth, color: "white" }}>
-        {!trash ? (
-          <Link
-            href={`/library/${toon.id}`}
-            style={{ textDecoration: "none", color: "white" }}
-          >
-            <Thumbnail toon={toon} trash={false} />
-            <Title title={toon.title} />
-          </Link>
-        ) : (
-          <>
-            <Thumbnail toon={toon} trash />
-            <Title title={toon.title} />
-
-            <div className="mt-2 flex flex-col gap-1">
-              <button
-                onClick={() => restoreWebtoon(toon.id)}
-                className="border border-white/30 text-white text-[10px] md:text-xs py-1 rounded-lg hover:bg-white hover:text-black transition"
-              >
-                복구
-              </button>
-
-              <button
-                onClick={() => permanentDeleteWebtoon(toon.id)}
-                className="border border-red-500 text-red-400 text-[10px] md:text-xs py-1 rounded-lg hover:bg-red-500 hover:text-white transition"
-              >
-                영구삭제
-              </button>
-            </div>
-          </>
-        )}
-      </div>
-    );
-  }
-
   function Thumbnail({ toon, trash }: { toon: WebtoonItem; trash: boolean }) {
     return (
       <div
         style={{
-          width: cardWidth,
-          height: cardHeight,
+          width: cardSize,
+          height: cardSize,
           borderRadius: "10px",
           overflow: "hidden",
           background: "rgba(255,255,255,0.05)",
@@ -242,6 +203,43 @@ export default function LibraryPage() {
       >
         {title}
       </h2>
+    );
+  }
+
+  function Card({ toon, trash = false }: { toon: WebtoonItem; trash?: boolean }) {
+    return (
+      <div style={{ width: cardSize, color: "white" }}>
+        {!trash ? (
+          <Link
+            href={`/library/${toon.id}`}
+            style={{ textDecoration: "none", color: "white" }}
+          >
+            <Thumbnail toon={toon} trash={false} />
+            <Title title={toon.title} />
+          </Link>
+        ) : (
+          <>
+            <Thumbnail toon={toon} trash />
+            <Title title={toon.title} />
+
+            <div className="mt-2 flex flex-col gap-1">
+              <button
+                onClick={() => restoreWebtoon(toon.id)}
+                className="border border-white/30 text-white text-[10px] md:text-xs py-1 rounded-lg hover:bg-white hover:text-black transition"
+              >
+                복구
+              </button>
+
+              <button
+                onClick={() => permanentDeleteWebtoon(toon.id)}
+                className="border border-red-500 text-red-400 text-[10px] md:text-xs py-1 rounded-lg hover:bg-red-500 hover:text-white transition"
+              >
+                영구삭제
+              </button>
+            </div>
+          </>
+        )}
+      </div>
     );
   }
 
