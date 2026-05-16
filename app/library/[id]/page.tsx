@@ -72,7 +72,10 @@ export default function WebtoonDetailPage() {
   async function editTitle() {
     if (!webtoon) return;
 
-    const newTitle = prompt("새 제목 입력", webtoon.title);
+    const newTitle = prompt(
+      "새 제목 입력",
+      webtoon.title
+    );
 
     if (!newTitle) return;
 
@@ -280,20 +283,6 @@ export default function WebtoonDetailPage() {
 
             <button
               onClick={() => {
-                setEpisodeDeleteMode(!episodeDeleteMode);
-                setEpisodeEditMode(false);
-              }}
-              className={`px-5 py-3 rounded-xl transition border ${
-                episodeDeleteMode
-                  ? "bg-red-500 text-white border-red-500"
-                  : "border-red-500 text-red-400 hover:bg-red-500 hover:text-white"
-              }`}
-            >
-              에피소드 삭제
-            </button>
-
-            <button
-              onClick={() => {
                 setEpisodeEditMode(!episodeEditMode);
                 setEpisodeDeleteMode(false);
               }}
@@ -304,6 +293,20 @@ export default function WebtoonDetailPage() {
               }`}
             >
               에피소드 수정
+            </button>
+
+            <button
+              onClick={() => {
+                setEpisodeDeleteMode(!episodeDeleteMode);
+                setEpisodeEditMode(false);
+              }}
+              className={`px-5 py-3 rounded-xl transition border ${
+                episodeDeleteMode
+                  ? "bg-red-500 text-white border-red-500"
+                  : "border-red-500 text-red-400 hover:bg-red-500 hover:text-white"
+              }`}
+            >
+              에피소드 삭제
             </button>
 
           </div>
