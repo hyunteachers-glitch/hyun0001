@@ -29,7 +29,6 @@ export default function WebtoonDetailPage() {
 
   useEffect(() => {
     if (!webtoonId) return;
-
     getWebtoon();
     getEpisodes();
   }, [webtoonId]);
@@ -113,7 +112,7 @@ export default function WebtoonDetailPage() {
 
   return (
     <main className="min-h-screen bg-black text-white px-8 py-10">
-      <div className="flex justify-between items-center mb-10">
+      <div className="flex justify-between items-center mb-10 flex-wrap gap-3">
         <Link
           href="/library"
           className="border border-white px-4 py-2 rounded-full hover:bg-white hover:text-black transition"
@@ -121,12 +120,28 @@ export default function WebtoonDetailPage() {
           ← LIBRARY
         </Link>
 
-        <Link
-          href="/"
-          className="border border-white px-4 py-2 rounded-full hover:bg-white hover:text-black transition"
-        >
-          HOME
-        </Link>
+        <div className="flex gap-3 items-center">
+          <button
+            onClick={editTitle}
+            className="border border-white/40 px-5 py-3 rounded-xl hover:bg-white hover:text-black transition"
+          >
+            제목 수정
+          </button>
+
+          <button
+            onClick={moveToTrash}
+            className="border border-red-500 text-red-400 px-5 py-3 rounded-xl hover:bg-red-500 hover:text-white transition"
+          >
+            삭제
+          </button>
+
+          <Link
+            href="/"
+            className="border border-white px-4 py-2 rounded-full hover:bg-white hover:text-black transition"
+          >
+            HOME
+          </Link>
+        </div>
       </div>
 
       <section className="flex gap-8 mb-12 flex-wrap">
@@ -144,22 +159,6 @@ export default function WebtoonDetailPage() {
           <p className="text-white/70 text-lg leading-relaxed mb-8">
             {webtoon.description || "설명이 없는 작품"}
           </p>
-
-          <div className="flex gap-3">
-            <button
-              onClick={editTitle}
-              className="border border-white/40 px-5 py-3 rounded-xl hover:bg-white hover:text-black transition"
-            >
-              제목 수정
-            </button>
-
-            <button
-              onClick={moveToTrash}
-              className="border border-red-500 text-red-400 px-5 py-3 rounded-xl hover:bg-red-500 hover:text-white transition"
-            >
-              삭제
-            </button>
-          </div>
         </div>
       </section>
 
