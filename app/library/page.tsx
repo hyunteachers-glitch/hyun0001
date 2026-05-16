@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { supabase } from "../supabase";
 
@@ -15,6 +15,7 @@ type WebtoonItem = {
 export default function LibraryPage() {
   const [webtoons, setWebtoons] = useState<WebtoonItem[]>([]);
   const [search, setSearch] = useState("");
+  const [sortType, setSortType] = useState<"latest" | "abc">("latest");
 
   useEffect(() => {
     getWebtoons();
@@ -31,19 +32,36 @@ export default function LibraryPage() {
       return;
     }
 
-    const sorted = (data || []).sort((a, b) => {
-      const aTime = a.updated_at ? new Date(a.updated_at).getTime() : 0;
-      const bTime = b.updated_at ? new Date(b.updated_at).getTime() : 0;
-
-      return bTime - aTime;
-    });
-
-    setWebtoons(sorted);
+    setWebtoons(data || []);
   }
 
-  const filteredWebtoons = webtoons.filter((toon) =>
-    toon.title.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredWebtoons = useMemo(() => {
+    let result = webtoons.filter((toon) =>
+      toon.title.toLowerCase().includes(search.toLowerCase())
+    );
+
+    if (sortType === "latest") {
+      result = [...result].sort((a, b) => {
+        const aTime = a.updated_at
+          ? new Date(a.updated_at).getTime()
+          : 0;
+
+        const bTime = b.updated_at
+          ? new Date(b.updated_at).getTime()
+          : 0;
+
+        return bTime - aTime;
+      });
+    }
+
+    if (sortType === "abc") {
+      result = [...result].sort((a, b) =>
+        a.title.localeCompare(b.title, "ko")
+      );
+    }
+
+    return result;
+  }, [webtoons, search, sortType]);
 
   return (
     <main className="min-h-screen bg-black text-white px-8 py-10">
@@ -70,7 +88,8 @@ export default function LibraryPage() {
         </div>
       </div>
 
-      <div className="mb-10 flex justify-center">
+      <div className="mb-10 flex justify-center items-center gap-3 flex-wrap">
+
         <input
           type="text"
           placeholder="작품 검색"
@@ -89,7 +108,36 @@ export default function LibraryPage() {
             textAlign: "center",
           }}
         />
+
+        <button
+          onClick={() => setSortType("abc")}
+          className={`px-4 py-3 rounded-full border transition ${
+            sortType === "abc"
+              ? "bg-white text-black border-white"
+              : "border-white/20 text-white hover:bg-white hover:text-black"
+          }`}
+        >
+          가나다순
+        </button>
+
+        <button
+          onClick={() => setSortType("latest")}
+          className={`px-4 py-3 rounded-full border transition ${
+            sortType === "latest"
+              ? "bg-white text-black border-white"
+              : "border-white/20 text-white hover:bg-white hover:text-black"
+          }`}
+        >
+          최신순
+        </button>
+
       </div>
+
+      {filteredWebtoons.length === 0 && (
+        <p className="text-white/40 text-center">
+          검색 결과가 없어.
+        </p>
+      )}
 
       <div className="flex justify-center">
         <div
