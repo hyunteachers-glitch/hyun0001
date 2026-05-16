@@ -29,6 +29,7 @@ export default function WebtoonDetailPage() {
 
   useEffect(() => {
     if (!webtoonId) return;
+
     getWebtoon();
     getEpisodes();
   }, [webtoonId]);
@@ -73,6 +74,25 @@ export default function WebtoonDetailPage() {
     const { error } = await supabase
       .from("webtoons")
       .update({ title: newTitle })
+      .eq("id", webtoon.id);
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    getWebtoon();
+  }
+
+  async function editDescription() {
+    if (!webtoon) return;
+
+    const newDescription = prompt("새 설명 입력", webtoon.description || "");
+    if (newDescription === null) return;
+
+    const { error } = await supabase
+      .from("webtoons")
+      .update({ description: newDescription })
       .eq("id", webtoon.id);
 
     if (error) {
@@ -129,18 +149,18 @@ export default function WebtoonDetailPage() {
           </button>
 
           <button
+            onClick={editDescription}
+            className="border border-white/40 px-5 py-3 rounded-xl hover:bg-white hover:text-black transition"
+          >
+            설명 수정
+          </button>
+
+          <button
             onClick={moveToTrash}
             className="border border-red-500 text-red-400 px-5 py-3 rounded-xl hover:bg-red-500 hover:text-white transition"
           >
             삭제
           </button>
-
-          <Link
-            href="/"
-            className="border border-white px-4 py-2 rounded-full hover:bg-white hover:text-black transition"
-          >
-            HOME
-          </Link>
         </div>
       </div>
 
