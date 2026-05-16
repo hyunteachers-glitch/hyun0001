@@ -17,6 +17,7 @@ type Episode = {
   id: number;
   title: string;
   episode_no: number;
+  deleted: boolean;
 };
 
 export default function WebtoonDetailPage() {
@@ -29,7 +30,6 @@ export default function WebtoonDetailPage() {
 
   useEffect(() => {
     if (!webtoonId) return;
-
     getWebtoon();
     getEpisodes();
   }, [webtoonId]);
@@ -122,6 +122,23 @@ export default function WebtoonDetailPage() {
     router.push("/library");
   }
 
+  async function deleteEpisode(id: number) {
+    const ok = confirm("이 에피소드를 삭제할까?");
+    if (!ok) return;
+
+    const { error } = await supabase
+      .from("episodes")
+      .update({ deleted: true })
+      .eq("id", id);
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    getEpisodes();
+  }
+
   if (!webtoon) {
     return (
       <main className="min-h-screen bg-black text-white flex items-center justify-center">
@@ -183,20 +200,37 @@ export default function WebtoonDetailPage() {
       </section>
 
       <section className="border-t border-white/10 pt-8">
-        <h2 className="text-3xl font-bold mb-6">EPISODES</h2>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-3xl font-bold">EPISODES</h2>
+
+          <Link
+            href="/upload"
+            className="border border-white px-5 py-3 rounded-xl hover:bg-white hover:text-black transition"
+          >
+            에피소드 추가
+          </Link>
+        </div>
 
         <div className="flex flex-col gap-3">
           {episodes.map((episode) => (
-            <Link
+            <div
               key={episode.id}
-              href={`/viewer/${episode.id}`}
-              className="border border-white/10 rounded-2xl px-6 py-5 hover:bg-white hover:text-black transition"
+              className="border border-white/10 rounded-2xl px-6 py-5 flex items-center justify-between gap-4"
             >
-              <div className="flex items-center justify-between">
-                <div className="text-xl font-bold">{episode.title}</div>
-                <div className="text-sm opacity-60">{episode.episode_no}화</div>
-              </div>
-            </Link>
+              <Link href={`/viewer/${episode.id}`} className="flex-1">
+                <div className="flex items-center justify-between">
+                  <div className="text-xl font-bold">{episode.title}</div>
+                  <div className="text-sm opacity-60">{episode.episode_no}화</div>
+                </div>
+              </Link>
+
+              <button
+                onClick={() => deleteEpisode(episode.id)}
+                className="border border-red-500 text-red-400 px-4 py-2 rounded-xl hover:bg-red-500 hover:text-white transition"
+              >
+                삭제
+              </button>
+            </div>
           ))}
 
           {episodes.length === 0 && (
