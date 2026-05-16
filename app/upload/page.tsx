@@ -10,13 +10,13 @@ type ImageItem = {
 };
 
 export default function UploadPage() {
-  const [uploading, setUploading] = useState(false);
   const [images, setImages] = useState<ImageItem[]>([]);
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
-  const [createMode, setCreateMode] = useState(false);
-  const [deleteMode, setDeleteMode] = useState(false);
-  const [selectedImages, setSelectedImages] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [mode, setMode] = useState<"gallery" | "work" | "delete">("gallery");
+
   const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [coverUrl, setCoverUrl] = useState("");
 
   useEffect(() => {
     getImages();
@@ -83,215 +83,117 @@ export default function UploadPage() {
     getImages();
   }
 
-  function toggleImage(url: string) {
-    if (selectedImages.includes(url)) {
-      setSelectedImages(selectedImages.filter((item) => item !== url));
-    } else {
-      setSelectedImages([...selectedImages, url]);
-    }
-  }
-
-  function handleImageClick(item: ImageItem) {
-    if (createMode) {
-      toggleImage(item.url);
-      return;
-    }
-
-    if (deleteMode) {
-      deleteImage(item.id, item.url);
-      return;
-    }
-
-    setPreviewImage(item.url);
-  }
-
-  async function createWebtoon() {
+  async function createWork() {
     if (!title.trim()) {
-      alert("웹툰 제목을 입력해줘.");
+      alert("작품 이름을 입력해줘.");
       return;
     }
 
-    if (selectedImages.length === 0) {
-      alert("이미지를 선택해줘.");
+    if (!coverUrl) {
+      alert("썸네일 사진을 선택해줘.");
       return;
     }
 
-    const { data: webtoonData, error: webtoonError } = await supabase
-      .from("webtoons")
-      .insert([
-        {
-          title: title.trim(),
-          cover_url: selectedImages[0],
-        },
-      ])
-      .select()
-      .single();
+    const { error } = await supabase.from("webtoons").insert([
+      {
+        title: title.trim(),
+        description: description.trim(),
+        cover_url: coverUrl,
+        deleted: false,
+      },
+    ]);
 
-    if (webtoonError) {
-      alert(webtoonError.message);
+    if (error) {
+      alert(error.message);
       return;
     }
 
-    const imageRows = selectedImages.map((url, index) => ({
-      webtoon_id: webtoonData.id,
-      image_url: url,
-      image_order: index,
-    }));
-
-    const { error: imageError } = await supabase
-      .from("webtoon_images")
-      .insert(imageRows);
-
-    if (imageError) {
-      alert(imageError.message);
-      return;
-    }
-
-    alert("웹툰 생성 완료!");
+    alert("작품 생성 완료!");
 
     setTitle("");
-    setSelectedImages([]);
-    setCreateMode(false);
+    setDescription("");
+    setCoverUrl("");
+    setMode("gallery");
   }
 
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        background: "black",
-        color: "white",
-        padding: "32px",
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: "32px",
-        }}
-      >
+    <main style={{ minHeight: "100vh", background: "black", color: "white", padding: "32px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "28px" }}>
         <div>
-          <h1 style={{ fontSize: "42px", fontWeight: "bold" }}>
-            UPLOAD
-          </h1>
-
-          <p style={{ color: "rgba(255,255,255,0.5)" }}>
-            업로드한 이미지를 관리하는 공간
-          </p>
+          <h1 style={{ fontSize: "42px", fontWeight: "bold" }}>UPLOAD</h1>
+          <p style={{ color: "rgba(255,255,255,0.5)" }}>이미지 업로드 / 작품 생성 / 삭제 관리</p>
         </div>
 
         <div style={{ display: "flex", gap: "10px" }}>
-          <Link href="/" style={buttonStyle}>
-            HOME
-          </Link>
+          <Link href="/" style={buttonStyle}>HOME</Link>
+          <Link href="/library" style={buttonStyle}>LIBRARY</Link>
 
           <label style={buttonStyle}>
             이미지 업로드
-
-            <input
-              type="file"
-              onChange={handleUpload}
-              style={{ display: "none" }}
-            />
+            <input type="file" onChange={handleUpload} style={{ display: "none" }} />
           </label>
 
-          <button
-            onClick={() => {
-              setCreateMode(!createMode);
-              setDeleteMode(false);
-              setSelectedImages([]);
-            }}
-            style={
-              createMode
-                ? activeButtonStyle
-                : buttonStyle
-            }
-          >
-            {createMode
-              ? "생성 종료"
-              : "생성"}
+          <button onClick={() => setMode("work")} style={mode === "work" ? activeButtonStyle : buttonStyle}>
+            작품 생성
           </button>
 
-          <button
-            onClick={() => {
-              setDeleteMode(!deleteMode);
-              setCreateMode(false);
-              setSelectedImages([]);
-            }}
-            style={
-              deleteMode
-                ? deleteActiveStyle
-                : deleteButtonStyle
-            }
-          >
-            {deleteMode
-              ? "삭제 종료"
-              : "삭제"}
+          <button onClick={() => setMode("delete")} style={mode === "delete" ? deleteActiveStyle : deleteButtonStyle}>
+            삭제
           </button>
         </div>
       </div>
 
       {uploading && <p>업로드 중...</p>}
 
-      {createMode && (
-        <div
-          style={{
-            marginBottom: "24px",
-            display: "flex",
-            gap: "10px",
-            maxWidth: "720px",
-          }}
-        >
+      {mode === "work" && (
+        <div style={{ marginBottom: "28px", maxWidth: "720px", display: "flex", flexDirection: "column", gap: "12px" }}>
           <input
-            type="text"
-            placeholder="웹툰 제목"
             value={title}
-            onChange={(e) =>
-              setTitle(e.target.value)
-            }
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="작품 이름"
             style={inputStyle}
           />
 
-          <button
-            onClick={createWebtoon}
-            style={buttonStyle}
-          >
-            웹툰 생성하기
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="작품 설명"
+            style={{ ...inputStyle, minHeight: "100px", resize: "vertical" }}
+          />
+
+          <button onClick={createWork} style={buttonStyle}>
+            작품 만들기
           </button>
+
+          <p style={{ color: "rgba(255,255,255,0.5)" }}>
+            아래 이미지 중 하나를 클릭하면 썸네일로 선택돼.
+          </p>
         </div>
       )}
 
       <div
         style={{
           display: "grid",
-          gridTemplateColumns:
-            "repeat(8, 120px)",
+          gridTemplateColumns: "repeat(8, 120px)",
           gap: "12px",
           overflowX: "auto",
-          alignItems: "start",
         }}
       >
         {images.map((item) => {
-          const selected =
-            selectedImages.includes(item.url);
-
-          const order =
-            selectedImages.indexOf(item.url) + 1;
+          const isCover = coverUrl === item.url;
 
           return (
             <button
               key={item.id}
-              onClick={() =>
-                handleImageClick(item)
-              }
+              onClick={() => {
+                if (mode === "work") setCoverUrl(item.url);
+                if (mode === "delete") deleteImage(item.id, item.url);
+              }}
               style={{
                 position: "relative",
                 width: "120px",
                 height: "120px",
-                border: selected
-                  ? "3px solid red"
-                  : "1px solid rgba(255,255,255,0.2)",
+                border: isCover ? "3px solid white" : "1px solid rgba(255,255,255,0.2)",
                 borderRadius: "10px",
                 overflow: "hidden",
                 padding: 0,
@@ -310,44 +212,12 @@ export default function UploadPage() {
                 }}
               />
 
-              {createMode && selected && (
-                <div style={numberStyle}>
-                  {order}
-                </div>
-              )}
-
-              {deleteMode && (
-                <div style={deleteOverlayStyle}>
-                  ×
-                </div>
-              )}
+              {isCover && <div style={badgeStyle}>썸네일</div>}
+              {mode === "delete" && <div style={deleteOverlayStyle}>×</div>}
             </button>
           );
         })}
       </div>
-
-      {previewImage && (
-        <div style={previewOverlayStyle}>
-          <button
-            onClick={() =>
-              setPreviewImage(null)
-            }
-            style={closeButtonStyle}
-          >
-            닫기
-          </button>
-
-          <img
-            src={previewImage}
-            alt=""
-            style={{
-              maxWidth: "90vw",
-              maxHeight: "90vh",
-              objectFit: "contain",
-            }}
-          />
-        </div>
-      )}
     </main>
   );
 }
@@ -382,7 +252,6 @@ const deleteActiveStyle = {
 };
 
 const inputStyle = {
-  flex: 1,
   border: "1px solid rgba(255,255,255,0.25)",
   borderRadius: "16px",
   padding: "14px 18px",
@@ -391,18 +260,16 @@ const inputStyle = {
   fontSize: "16px",
 };
 
-const numberStyle = {
+const badgeStyle = {
   position: "absolute" as const,
-  top: "6px",
-  right: "6px",
-  width: "26px",
-  height: "26px",
-  background: "red",
-  color: "white",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
+  left: "6px",
+  bottom: "6px",
+  background: "white",
+  color: "black",
+  fontSize: "11px",
   fontWeight: "bold",
+  padding: "4px 6px",
+  borderRadius: "6px",
 };
 
 const deleteOverlayStyle = {
@@ -415,27 +282,4 @@ const deleteOverlayStyle = {
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-};
-
-const previewOverlayStyle = {
-  position: "fixed" as const,
-  inset: 0,
-  background: "rgba(0,0,0,0.92)",
-  zIndex: 9999,
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  padding: "24px",
-};
-
-const closeButtonStyle = {
-  position: "absolute" as const,
-  top: "24px",
-  right: "24px",
-  border: "1px solid white",
-  borderRadius: "999px",
-  padding: "10px 20px",
-  background: "black",
-  color: "white",
-  cursor: "pointer",
 };
