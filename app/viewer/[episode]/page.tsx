@@ -128,43 +128,43 @@ export default function ViewerPage() {
           </div>
         </div>
 
-        <div className="md:hidden px-4 py-3 flex flex-col gap-3">
-          <div className="flex items-center justify-between">
+        <div className="md:hidden h-14 px-3 grid grid-cols-3 items-center text-sm">
+          <div className="text-left">
             <Link
               href={`/library/${episode.webtoon_id}`}
-              className="text-sm text-white/60"
+              className="text-white/60"
             >
-              ← 작품으로
+              ← 작품
             </Link>
-
-            <div className="flex items-center gap-4 text-sm">
-              {previousEpisode && (
-                <Link
-                  href={`/viewer/${previousEpisode.id}`}
-                  className="text-white/70"
-                >
-                  ← 이전화
-                </Link>
-              )}
-
-              {nextEpisode && (
-                <Link
-                  href={`/viewer/${nextEpisode.id}`}
-                  className="text-white/70"
-                >
-                  다음화 →
-                </Link>
-              )}
-            </div>
           </div>
 
-          <div className="text-center font-bold text-base">
+          <div className="text-center font-bold">
             {episode.episode_no}화
+          </div>
+
+          <div className="text-right flex justify-end gap-3">
+            {previousEpisode && (
+              <Link
+                href={`/viewer/${previousEpisode.id}`}
+                className="text-white/70 whitespace-nowrap"
+              >
+                이전
+              </Link>
+            )}
+
+            {nextEpisode && (
+              <Link
+                href={`/viewer/${nextEpisode.id}`}
+                className="text-white/70 whitespace-nowrap"
+              >
+                다음
+              </Link>
+            )}
           </div>
         </div>
       </div>
 
-      <div className="pt-20 md:pt-16 pb-24 flex flex-col items-center">
+      <div className="pt-14 md:pt-16 pb-24 flex flex-col items-center">
         {images.map((image) => (
           <img
             key={image.id}
