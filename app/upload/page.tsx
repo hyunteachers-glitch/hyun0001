@@ -70,6 +70,7 @@ export default function UploadPage() {
     if (!file) return;
 
     setUploading(true);
+    setMode("gallery");
 
     const filePath = `uploads/${Date.now()}-${file.name}`;
 
@@ -129,6 +130,7 @@ export default function UploadPage() {
         description: description.trim(),
         cover_url: coverUrl,
         deleted: false,
+        updated_at: new Date().toISOString(),
       },
     ]);
 
@@ -216,6 +218,11 @@ export default function UploadPage() {
       return;
     }
 
+    await supabase
+      .from("webtoons")
+      .update({ updated_at: new Date().toISOString() })
+      .eq("id", Number(selectedWebtoonId));
+
     alert("에피소드 생성 완료!");
 
     setEpisodeTitle("");
@@ -246,68 +253,83 @@ export default function UploadPage() {
   }
 
   return (
-    <main style={{ minHeight: "100vh", background: "black", color: "white", padding: "32px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "28px" }}>
+    <main className="min-h-screen bg-black text-white px-4 md:px-8 py-8">
+      <div className="flex flex-col gap-6 mb-8">
         <div>
-          <h1 style={{ fontSize: "42px", fontWeight: "bold" }}>UPLOAD</h1>
-          <p style={{ color: "rgba(255,255,255,0.5)" }}>
-            이미지 업로드 / 작품 생성 / 에피소드 생성 / 삭제
+          <h1 className="text-5xl font-bold mb-3">UPLOAD</h1>
+          <p className="text-white/50">
+            갤러리 관리 / 작품 생성 / 에피소드 생성
           </p>
         </div>
 
-        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-          <Link href="/" style={buttonStyle}>HOME</Link>
-          <Link href="/library" style={buttonStyle}>LIBRARY</Link>
+        <div className="flex gap-3 flex-wrap">
+          <Link href="/library" className={buttonClass}>
+            LIBRARY
+          </Link>
 
-          <label style={buttonStyle}>
-            이미지 업로드
-            <input type="file" onChange={handleUpload} style={{ display: "none" }} />
+          <label className={buttonClass}>
+            갤러리 추가
+            <input type="file" onChange={handleUpload} className="hidden" />
           </label>
 
-          <button onClick={() => setMode("gallery")} style={mode === "gallery" ? activeButtonStyle : buttonStyle}>
-            갤러리
-          </button>
-
-          <button onClick={() => setMode("work")} style={mode === "work" ? activeButtonStyle : buttonStyle}>
+          <button
+            onClick={() => setMode(mode === "work" ? "gallery" : "work")}
+            className={mode === "work" ? activeButtonClass : buttonClass}
+          >
             작품 생성
           </button>
 
-          <button onClick={() => setMode("episode")} style={mode === "episode" ? activeButtonStyle : buttonStyle}>
+          <button
+            onClick={() => setMode(mode === "episode" ? "gallery" : "episode")}
+            className={mode === "episode" ? activeButtonClass : buttonClass}
+          >
             에피소드 생성
           </button>
 
-          <button onClick={() => setMode("delete")} style={mode === "delete" ? deleteActiveStyle : deleteButtonStyle}>
+          <button
+            onClick={() => setMode(mode === "delete" ? "gallery" : "delete")}
+            className={mode === "delete" ? deleteActiveClass : deleteButtonClass}
+          >
             삭제
           </button>
         </div>
       </div>
 
-      {uploading && <p>업로드 중...</p>}
+      {uploading && <p className="mb-6 text-white/60">업로드 중...</p>}
 
       {mode === "work" && (
-        <div style={formBoxStyle}>
-          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="작품 이름" style={inputStyle} />
+        <div className="mb-8 max-w-[720px] flex flex-col gap-3">
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="작품 이름"
+            className={inputClass}
+          />
 
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="작품 설명"
-            style={{ ...inputStyle, minHeight: "100px", resize: "vertical" }}
+            className={`${inputClass} min-h-[100px] resize-y`}
           />
 
-          <button onClick={createWork} style={buttonStyle}>
+          <button onClick={createWork} className={buttonClass}>
             작품 만들기
           </button>
 
-          <p style={{ color: "rgba(255,255,255,0.5)" }}>
+          <p className="text-white/50">
             아래 이미지 중 하나를 클릭하면 썸네일로 선택돼.
           </p>
         </div>
       )}
 
       {mode === "episode" && (
-        <div style={formBoxStyle}>
-          <select value={selectedWebtoonId} onChange={(e) => setSelectedWebtoonId(e.target.value)} style={inputStyle}>
+        <div className="mb-8 max-w-[720px] flex flex-col gap-3">
+          <select
+            value={selectedWebtoonId}
+            onChange={(e) => setSelectedWebtoonId(e.target.value)}
+            className={inputClass}
+          >
             <option value="">작품 선택</option>
             {webtoons.map((toon) => (
               <option key={toon.id} value={toon.id}>
@@ -320,27 +342,20 @@ export default function UploadPage() {
             value={episodeTitle}
             onChange={(e) => setEpisodeTitle(e.target.value)}
             placeholder="에피소드 제목"
-            style={inputStyle}
+            className={inputClass}
           />
 
-          <button onClick={createEpisode} style={buttonStyle}>
+          <button onClick={createEpisode} className={buttonClass}>
             에피소드 만들기
           </button>
 
-          <p style={{ color: "rgba(255,255,255,0.5)" }}>
+          <p className="text-white/50">
             아래 이미지를 순서대로 선택하면 에피소드 컷으로 저장돼.
           </p>
         </div>
       )}
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(8, 120px)",
-          gap: "12px",
-          overflowX: "auto",
-        }}
-      >
+      <div className="grid grid-cols-3 md:grid-cols-10 gap-2 md:gap-3">
         {images.map((item) => {
           const isCover = coverUrl === item.url;
           const selected = selectedImages.includes(item.url);
@@ -350,58 +365,53 @@ export default function UploadPage() {
             <button
               key={item.id}
               onClick={() => handleImageClick(item)}
-              style={{
-                position: "relative",
-                width: "120px",
-                height: "120px",
-                border:
-                  isCover || selected
-                    ? "3px solid red"
-                    : "1px solid rgba(255,255,255,0.2)",
-                borderRadius: "10px",
-                overflow: "hidden",
-                padding: 0,
-                background: "black",
-                cursor: "pointer",
-              }}
+              className={`relative aspect-square overflow-hidden rounded-xl bg-black ${
+                isCover || selected
+                  ? "border-2 border-red-500"
+                  : "border border-white/15"
+              }`}
             >
               <img
                 src={item.url}
                 alt=""
-                style={{
-                  width: "120px",
-                  height: "120px",
-                  objectFit: "cover",
-                  display: "block",
-                }}
+                className="w-full h-full object-cover block"
               />
 
-              {isCover && mode === "work" && <div style={badgeStyle}>썸네일</div>}
-
-              {selected && mode === "episode" && (
-                <div style={numberStyle}>{order}</div>
+              {isCover && mode === "work" && (
+                <div className="absolute left-1 bottom-1 bg-white text-black text-[10px] font-bold px-2 py-1 rounded-md">
+                  썸네일
+                </div>
               )}
 
-              {mode === "delete" && <div style={deleteOverlayStyle}>×</div>}
+              {selected && mode === "episode" && (
+                <div className="absolute top-1 right-1 w-7 h-7 bg-red-500 text-white flex items-center justify-center font-bold">
+                  {order}
+                </div>
+              )}
+
+              {mode === "delete" && (
+                <div className="absolute inset-0 bg-black/55 text-white text-4xl font-bold flex items-center justify-center">
+                  ×
+                </div>
+              )}
             </button>
           );
         })}
       </div>
 
       {previewImage && (
-        <div style={previewOverlayStyle}>
-          <button onClick={() => setPreviewImage(null)} style={closeButtonStyle}>
+        <div className="fixed inset-0 z-[9999] bg-black/95 flex items-center justify-center p-5">
+          <button
+            onClick={() => setPreviewImage(null)}
+            className="absolute top-5 right-5 border border-white px-5 py-2 rounded-full"
+          >
             닫기
           </button>
 
           <img
             src={previewImage}
             alt=""
-            style={{
-              maxWidth: "90vw",
-              maxHeight: "90vh",
-              objectFit: "contain",
-            }}
+            className="max-w-[92vw] max-h-[90vh] object-contain"
           />
         </div>
       )}
@@ -409,109 +419,17 @@ export default function UploadPage() {
   );
 }
 
-const buttonStyle = {
-  border: "1px solid white",
-  borderRadius: "999px",
-  padding: "14px 24px",
-  background: "black",
-  color: "white",
-  cursor: "pointer",
-  fontSize: "16px",
-  textDecoration: "none",
-};
+const buttonClass =
+  "border border-white px-5 py-3 rounded-full bg-black text-white cursor-pointer text-base no-underline hover:bg-white hover:text-black transition";
 
-const activeButtonStyle = {
-  ...buttonStyle,
-  background: "white",
-  color: "black",
-};
+const activeButtonClass =
+  "border border-white px-5 py-3 rounded-full bg-white text-black cursor-pointer text-base transition";
 
-const deleteButtonStyle = {
-  ...buttonStyle,
-  border: "1px solid red",
-  color: "red",
-};
+const deleteButtonClass =
+  "border border-red-500 px-5 py-3 rounded-full bg-black text-red-400 cursor-pointer text-base hover:bg-red-500 hover:text-white transition";
 
-const deleteActiveStyle = {
-  ...deleteButtonStyle,
-  background: "red",
-  color: "white",
-};
+const deleteActiveClass =
+  "border border-red-500 px-5 py-3 rounded-full bg-red-500 text-white cursor-pointer text-base transition";
 
-const inputStyle = {
-  border: "1px solid rgba(255,255,255,0.25)",
-  borderRadius: "16px",
-  padding: "14px 18px",
-  background: "black",
-  color: "white",
-  fontSize: "16px",
-};
-
-const formBoxStyle = {
-  marginBottom: "28px",
-  maxWidth: "720px",
-  display: "flex",
-  flexDirection: "column" as const,
-  gap: "12px",
-};
-
-const badgeStyle = {
-  position: "absolute" as const,
-  left: "6px",
-  bottom: "6px",
-  background: "white",
-  color: "black",
-  fontSize: "11px",
-  fontWeight: "bold",
-  padding: "4px 6px",
-  borderRadius: "6px",
-};
-
-const numberStyle = {
-  position: "absolute" as const,
-  top: "6px",
-  right: "6px",
-  width: "26px",
-  height: "26px",
-  background: "red",
-  color: "white",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  fontWeight: "bold",
-};
-
-const deleteOverlayStyle = {
-  position: "absolute" as const,
-  inset: 0,
-  background: "rgba(0,0,0,0.55)",
-  color: "white",
-  fontSize: "40px",
-  fontWeight: "bold",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-};
-
-const previewOverlayStyle = {
-  position: "fixed" as const,
-  inset: 0,
-  background: "rgba(0,0,0,0.92)",
-  zIndex: 9999,
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  padding: "24px",
-};
-
-const closeButtonStyle = {
-  position: "absolute" as const,
-  top: "24px",
-  right: "24px",
-  border: "1px solid white",
-  borderRadius: "999px",
-  padding: "10px 20px",
-  background: "black",
-  color: "white",
-  cursor: "pointer",
-};
+const inputClass =
+  "border border-white/25 rounded-2xl px-4 py-3 bg-black text-white text-base outline-none";
