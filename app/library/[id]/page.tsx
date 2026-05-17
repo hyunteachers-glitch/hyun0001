@@ -34,7 +34,13 @@ export default function WebtoonDetailPage() {
   const [webtoon, setWebtoon] = useState<Webtoon | null>(null);
   const [episodes, setEpisodes] = useState<Episode[]>([]);
   const [images, setImages] = useState<ImageItem[]>([]);
+
   const [selectImageMode, setSelectImageMode] = useState(false);
+  const [editTitleMode, setEditTitleMode] = useState(false);
+  const [editDescriptionMode, setEditDescriptionMode] = useState(false);
+
+  const [titleInput, setTitleInput] = useState("");
+  const [descriptionInput, setDescriptionInput] = useState("");
 
   useEffect(() => {
     if (!webtoonId) return;
@@ -63,6 +69,8 @@ export default function WebtoonDetailPage() {
     }
 
     setWebtoon(data);
+    setTitleInput(data.title || "");
+    setDescriptionInput(data.description || "");
   }
 
   async function getEpisodes() {
@@ -96,15 +104,16 @@ export default function WebtoonDetailPage() {
     setImages(data || []);
   }
 
-  async function editTitle() {
+  async function saveTitle() {
     if (!webtoon) return;
-
-    const newTitle = prompt("새 제목 입력", webtoon.title);
-    if (!newTitle) return;
+    if (!titleInput.trim()) {
+      alert("제목을 입력해줘.");
+      return;
+    }
 
     const { error } = await supabase
       .from("webtoons")
-      .update({ title: newTitle })
+      .update({ title: titleInput.trim() })
       .eq("id", webtoon.id);
 
     if (error) {
@@ -113,18 +122,16 @@ export default function WebtoonDetailPage() {
     }
 
     await touchWebtoon();
+    setEditTitleMode(false);
     getWebtoon();
   }
 
-  async function editDescription() {
+  async function saveDescription() {
     if (!webtoon) return;
-
-    const newDescription = prompt("새 설명 입력", webtoon.description || "");
-    if (newDescription === null) return;
 
     const { error } = await supabase
       .from("webtoons")
-      .update({ description: newDescription })
+      .update({ description: descriptionInput })
       .eq("id", webtoon.id);
 
     if (error) {
@@ -133,6 +140,7 @@ export default function WebtoonDetailPage() {
     }
 
     await touchWebtoon();
+    setEditDescriptionMode(false);
     getWebtoon();
   }
 
@@ -191,18 +199,36 @@ export default function WebtoonDetailPage() {
           </Link>
 
           <div className="flex gap-1.5 md:gap-2 items-center justify-end flex-nowrap">
-            <button onClick={editTitle} className={buttonClass}>
+            <button
+              onClick={() => {
+                setEditTitleMode(!editTitleMode);
+                setEditDescriptionMode(false);
+                setSelectImageMode(false);
+              }}
+              className={editTitleMode ? activeButtonClass : buttonClass}
+            >
               제목 수정
             </button>
 
             <button
-              onClick={() => setSelectImageMode(!selectImageMode)}
+              onClick={() => {
+                setSelectImageMode(!selectImageMode);
+                setEditTitleMode(false);
+                setEditDescriptionMode(false);
+              }}
               className={selectImageMode ? activeButtonClass : buttonClass}
             >
               사진 수정
             </button>
 
-            <button onClick={editDescription} className={buttonClass}>
+            <button
+              onClick={() => {
+                setEditDescriptionMode(!editDescriptionMode);
+                setEditTitleMode(false);
+                setSelectImageMode(false);
+              }}
+              className={editDescriptionMode ? activeButtonClass : buttonClass}
+            >
               설명 수정
             </button>
 
@@ -222,13 +248,41 @@ export default function WebtoonDetailPage() {
           </div>
 
           <div className="flex-1 min-w-0 pt-0">
-            <h1 className="text-3xl md:text-5xl font-bold mb-4 leading-tight">
-              {webtoon.title}
-            </h1>
+            {editTitleMode ? (
+              <div className="mb-4 flex gap-2">
+                <input
+                  value={titleInput}
+                  onChange={(e) => setTitleInput(e.target.value)}
+                  className="w-full bg-black border border-white/25 rounded-2xl px-4 py-3 text-white outline-none text-2xl md:text-4xl font-bold"
+                />
 
-            <p className="text-white/70 leading-relaxed text-sm md:text-base whitespace-pre-wrap">
-              {webtoon.description || "설명이 없는 작품"}
-            </p>
+                <button onClick={saveTitle} className={smallButtonClass}>
+                  완료
+                </button>
+              </div>
+            ) : (
+              <h1 className="text-3xl md:text-5xl font-bold mb-4 leading-tight">
+                {webtoon.title}
+              </h1>
+            )}
+
+            {editDescriptionMode ? (
+              <div className="flex flex-col gap-3">
+                <textarea
+                  value={descriptionInput}
+                  onChange={(e) => setDescriptionInput(e.target.value)}
+                  className="w-full min-h-[120px] bg-black border border-white/25 rounded-2xl px-4 py-3 text-white outline-none resize-y"
+                />
+
+                <button onClick={saveDescription} className={smallButtonClass}>
+                  설명 완료
+                </button>
+              </div>
+            ) : (
+              <p className="text-white/70 leading-relaxed text-sm md:text-base whitespace-pre-wrap">
+                {webtoon.description || "설명이 없는 작품"}
+              </p>
+            )}
           </div>
         </section>
 
@@ -304,3 +358,6 @@ const activeButtonClass =
 
 const deleteButtonClass =
   "border border-red-500 text-red-400 px-2.5 md:px-4 py-2 rounded-full hover:bg-red-500 hover:text-white transition text-[11px] md:text-base whitespace-nowrap";
+
+const smallButtonClass =
+  "border border-white px-4 py-2 rounded-xl hover:bg-white hover:text-black transition whitespace-nowrap";
