@@ -184,7 +184,9 @@ export default function LibraryPage() {
     page * itemsPerPage
   );
 
-  const cardSize = isMobile ? 78 : 170;
+  const cardWidth = isMobile ? 88 : 190;
+  const thumbnailSize = isMobile ? 88 : 190;
+  const cardHeight = isMobile ? 150 : 275;
 
   const gridStyle = {
     display: "grid",
@@ -212,9 +214,8 @@ export default function LibraryPage() {
     return (
       <div
         style={{
-          width: cardSize,
-          height: cardSize,
-          borderRadius: "10px",
+          width: thumbnailSize,
+          height: thumbnailSize,
           overflow: "hidden",
           background: "rgba(255,255,255,0.05)",
           opacity: trash ? 0.65 : 1,
@@ -254,10 +255,10 @@ export default function LibraryPage() {
     const cardInner = (
       <div
         style={{
-          width: isMobile ? "88px" : "190px",
-          minHeight: isMobile ? "142px" : "245px",
-          padding: isMobile ? "5px" : "9px",
+          width: cardWidth,
+          height: trash ? "auto" : cardHeight,
           borderRadius: "14px",
+          overflow: "hidden",
           border: trash
             ? "1px solid rgba(239,68,68,0.65)"
             : "1px solid rgba(255,255,255,0.28)",
@@ -266,26 +267,33 @@ export default function LibraryPage() {
         }}
       >
         <Thumbnail toon={toon} trash={trash} />
-        <Title title={toon.title} />
-        <EpisodeLabel toonId={toon.id} />
 
-        {trash && (
-          <div className="mt-2 flex flex-col gap-1">
-            <button
-              onClick={() => restoreWebtoon(toon.id)}
-              className="border border-white/30 text-white text-[10px] md:text-xs py-1 rounded-lg hover:bg-white hover:text-black transition"
-            >
-              복구
-            </button>
+        <div
+          style={{
+            padding: isMobile ? "6px" : "9px",
+          }}
+        >
+          <Title title={toon.title} />
+          <EpisodeLabel toonId={toon.id} />
 
-            <button
-              onClick={() => permanentDeleteWebtoon(toon.id)}
-              className="border border-red-500 text-red-400 text-[10px] md:text-xs py-1 rounded-lg hover:bg-red-500 hover:text-white transition"
-            >
-              영구삭제
-            </button>
-          </div>
-        )}
+          {trash && (
+            <div className="mt-2 flex flex-col gap-1">
+              <button
+                onClick={() => restoreWebtoon(toon.id)}
+                className="border border-white/30 text-white text-[10px] md:text-xs py-1 rounded-lg hover:bg-white hover:text-black transition"
+              >
+                복구
+              </button>
+
+              <button
+                onClick={() => permanentDeleteWebtoon(toon.id)}
+                className="border border-red-500 text-red-400 text-[10px] md:text-xs py-1 rounded-lg hover:bg-red-500 hover:text-white transition"
+              >
+                영구삭제
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     );
 
