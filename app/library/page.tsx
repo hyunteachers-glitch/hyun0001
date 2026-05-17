@@ -13,9 +13,14 @@ type WebtoonItem = {
   created_at?: string | null;
 };
 
+type EpisodeRow = {
+  webtoon_id: number;
+};
+
 export default function LibraryPage() {
   const [webtoons, setWebtoons] = useState<WebtoonItem[]>([]);
   const [trashWebtoons, setTrashWebtoons] = useState<WebtoonItem[]>([]);
+  const [episodeCounts, setEpisodeCounts] = useState<Record<number, number>>({});
   const [search, setSearch] = useState("");
   const [sortType, setSortType] = useState<"latest" | "abc">("latest");
   const [page, setPage] = useState(1);
@@ -27,6 +32,7 @@ export default function LibraryPage() {
   useEffect(() => {
     getWebtoons();
     getTrashWebtoons();
+    getEpisodeCounts();
 
     function checkMobile() {
       setIsMobile(window.innerWidth < 768);
@@ -70,6 +76,26 @@ export default function LibraryPage() {
     setTrashWebtoons(data || []);
   }
 
+  async function getEpisodeCounts() {
+    const { data, error } = await supabase
+      .from("episodes")
+      .select("webtoon_id")
+      .eq("deleted", false);
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    const counts: Record<number, number> = {};
+
+    (data as EpisodeRow[]).forEach((episode) => {
+      counts[episode.webtoon_id] = (counts[episode.webtoon_id] || 0) + 1;
+    });
+
+    setEpisodeCounts(counts);
+  }
+
   async function restoreWebtoon(id: number) {
     const { error } = await supabase
       .from("webtoons")
@@ -86,6 +112,7 @@ export default function LibraryPage() {
 
     getWebtoons();
     getTrashWebtoons();
+    getEpisodeCounts();
   }
 
   async function permanentDeleteWebtoon(id: number) {
@@ -109,6 +136,7 @@ export default function LibraryPage() {
 
     getWebtoons();
     getTrashWebtoons();
+    getEpisodeCounts();
   }
 
   function getTime(toon: WebtoonItem) {
@@ -146,7 +174,10 @@ export default function LibraryPage() {
     return result;
   }, [webtoons, search, sortType]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredWebtoons.length / itemsPerPage));
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredWebtoons.length / itemsPerPage)
+  );
 
   const pagedWebtoons = filteredWebtoons.slice(
     (page - 1) * itemsPerPage,
@@ -157,9 +188,25 @@ export default function LibraryPage() {
 
   const gridStyle = {
     display: "grid",
-    gridTemplateColumns: isMobile ? "repeat(4, 78px)" : "repeat(6, 170px)",
+    gridTemplateColumns: isMobile ? "repeat(4, 88px)" : "repeat(6, 190px)",
     gap: isMobile ? "12px" : "20px",
   };
+
+  function EpisodeLabel({ toonId }: { toonId: number }) {
+    const count = episodeCounts[toonId] || 0;
+
+    return (
+      <p
+        style={{
+          fontSize: isMobile ? "10px" : "13px",
+          color: "rgba(255,255,255,0.55)",
+          marginTop: "5px",
+        }}
+      >
+        {count > 0 ? `에피소드 ${count}` : "에피소드 없음"}
+      </p>
+    );
+  }
 
   function Thumbnail({ toon, trash }: { toon: WebtoonItem; trash: boolean }) {
     return (
@@ -170,9 +217,6 @@ export default function LibraryPage() {
           borderRadius: "10px",
           overflow: "hidden",
           background: "rgba(255,255,255,0.05)",
-          border: trash
-            ? "1px solid rgba(239,68,68,0.5)"
-            : "1px solid rgba(255,255,255,0.12)",
           opacity: trash ? 0.65 : 1,
         }}
       >
@@ -207,39 +251,53 @@ export default function LibraryPage() {
   }
 
   function Card({ toon, trash = false }: { toon: WebtoonItem; trash?: boolean }) {
-    return (
-      <div style={{ width: cardSize, color: "white" }}>
-        {!trash ? (
-          <Link
-            href={`/library/${toon.id}`}
-            style={{ textDecoration: "none", color: "white" }}
-          >
-            <Thumbnail toon={toon} trash={false} />
-            <Title title={toon.title} />
-          </Link>
-        ) : (
-          <>
-            <Thumbnail toon={toon} trash />
-            <Title title={toon.title} />
+    const cardInner = (
+      <div
+        style={{
+          width: isMobile ? "88px" : "190px",
+          minHeight: isMobile ? "142px" : "245px",
+          padding: isMobile ? "5px" : "9px",
+          borderRadius: "14px",
+          border: trash
+            ? "1px solid rgba(239,68,68,0.65)"
+            : "1px solid rgba(255,255,255,0.28)",
+          background: "rgba(255,255,255,0.02)",
+          color: "white",
+        }}
+      >
+        <Thumbnail toon={toon} trash={trash} />
+        <Title title={toon.title} />
+        <EpisodeLabel toonId={toon.id} />
 
-            <div className="mt-2 flex flex-col gap-1">
-              <button
-                onClick={() => restoreWebtoon(toon.id)}
-                className="border border-white/30 text-white text-[10px] md:text-xs py-1 rounded-lg hover:bg-white hover:text-black transition"
-              >
-                복구
-              </button>
+        {trash && (
+          <div className="mt-2 flex flex-col gap-1">
+            <button
+              onClick={() => restoreWebtoon(toon.id)}
+              className="border border-white/30 text-white text-[10px] md:text-xs py-1 rounded-lg hover:bg-white hover:text-black transition"
+            >
+              복구
+            </button>
 
-              <button
-                onClick={() => permanentDeleteWebtoon(toon.id)}
-                className="border border-red-500 text-red-400 text-[10px] md:text-xs py-1 rounded-lg hover:bg-red-500 hover:text-white transition"
-              >
-                영구삭제
-              </button>
-            </div>
-          </>
+            <button
+              onClick={() => permanentDeleteWebtoon(toon.id)}
+              className="border border-red-500 text-red-400 text-[10px] md:text-xs py-1 rounded-lg hover:bg-red-500 hover:text-white transition"
+            >
+              영구삭제
+            </button>
+          </div>
         )}
       </div>
+    );
+
+    if (trash) return cardInner;
+
+    return (
+      <Link
+        href={`/library/${toon.id}`}
+        style={{ textDecoration: "none", color: "white" }}
+      >
+        {cardInner}
+      </Link>
     );
   }
 
