@@ -29,19 +29,15 @@ type ImageItem = {
 export default function WebtoonDetailPage() {
   const params = useParams();
   const router = useRouter();
-
   const webtoonId = Number(params.id);
 
   const [webtoon, setWebtoon] = useState<Webtoon | null>(null);
   const [episodes, setEpisodes] = useState<Episode[]>([]);
   const [images, setImages] = useState<ImageItem[]>([]);
-
-  const [selectImageMode, setSelectImageMode] =
-    useState(false);
+  const [selectImageMode, setSelectImageMode] = useState(false);
 
   useEffect(() => {
     if (!webtoonId) return;
-
     getWebtoon();
     getEpisodes();
     getImages();
@@ -50,9 +46,7 @@ export default function WebtoonDetailPage() {
   async function touchWebtoon() {
     await supabase
       .from("webtoons")
-      .update({
-        updated_at: new Date().toISOString(),
-      })
+      .update({ updated_at: new Date().toISOString() })
       .eq("id", webtoonId);
   }
 
@@ -77,12 +71,8 @@ export default function WebtoonDetailPage() {
       .select("*")
       .eq("webtoon_id", webtoonId)
       .eq("deleted", false)
-      .order("episode_no", {
-        ascending: true,
-      })
-      .order("id", {
-        ascending: true,
-      });
+      .order("episode_no", { ascending: true })
+      .order("id", { ascending: true });
 
     if (error) {
       alert(error.message);
@@ -96,9 +86,7 @@ export default function WebtoonDetailPage() {
     const { data, error } = await supabase
       .from("images")
       .select("*")
-      .order("id", {
-        ascending: false,
-      });
+      .order("id", { ascending: false });
 
     if (error) {
       alert(error.message);
@@ -111,18 +99,12 @@ export default function WebtoonDetailPage() {
   async function editTitle() {
     if (!webtoon) return;
 
-    const newTitle = prompt(
-      "새 제목 입력",
-      webtoon.title
-    );
-
+    const newTitle = prompt("새 제목 입력", webtoon.title);
     if (!newTitle) return;
 
     const { error } = await supabase
       .from("webtoons")
-      .update({
-        title: newTitle,
-      })
+      .update({ title: newTitle })
       .eq("id", webtoon.id);
 
     if (error) {
@@ -137,18 +119,12 @@ export default function WebtoonDetailPage() {
   async function editDescription() {
     if (!webtoon) return;
 
-    const newDescription = prompt(
-      "새 설명 입력",
-      webtoon.description || ""
-    );
-
+    const newDescription = prompt("새 설명 입력", webtoon.description || "");
     if (newDescription === null) return;
 
     const { error } = await supabase
       .from("webtoons")
-      .update({
-        description: newDescription,
-      })
+      .update({ description: newDescription })
       .eq("id", webtoon.id);
 
     if (error) {
@@ -160,14 +136,10 @@ export default function WebtoonDetailPage() {
     getWebtoon();
   }
 
-  async function updateMainImage(
-    imageUrl: string
-  ) {
+  async function updateMainImage(imageUrl: string) {
     const { error } = await supabase
       .from("webtoons")
-      .update({
-        main_image_url: imageUrl,
-      })
+      .update({ main_image_url: imageUrl })
       .eq("id", webtoonId);
 
     if (error) {
@@ -176,7 +148,6 @@ export default function WebtoonDetailPage() {
     }
 
     await touchWebtoon();
-
     setSelectImageMode(false);
     getWebtoon();
   }
@@ -184,17 +155,12 @@ export default function WebtoonDetailPage() {
   async function moveToTrash() {
     if (!webtoon) return;
 
-    const ok = confirm(
-      "이 작품을 휴지통으로 이동할까?"
-    );
-
+    const ok = confirm("이 작품을 휴지통으로 이동할까?");
     if (!ok) return;
 
     const { error } = await supabase
       .from("webtoons")
-      .update({
-        deleted: true,
-      })
+      .update({ deleted: true })
       .eq("id", webtoon.id);
 
     if (error) {
@@ -225,82 +191,58 @@ export default function WebtoonDetailPage() {
           </Link>
 
           <div className="flex gap-2 flex-wrap justify-end">
-            <button
-              onClick={editTitle}
-              className={buttonClass}
-            >
+            <button onClick={editTitle} className={buttonClass}>
               제목 수정
             </button>
 
             <button
-              onClick={() =>
-                setSelectImageMode(
-                  !selectImageMode
-                )
-              }
-              className={
-                selectImageMode
-                  ? activeButtonClass
-                  : buttonClass
-              }
+              onClick={() => setSelectImageMode(!selectImageMode)}
+              className={selectImageMode ? activeButtonClass : buttonClass}
             >
               사진 수정
             </button>
 
-            <button
-              onClick={editDescription}
-              className={buttonClass}
-            >
+            <button onClick={editDescription} className={buttonClass}>
               설명 수정
             </button>
 
-            <button
-              onClick={moveToTrash}
-              className={deleteButtonClass}
-            >
+            <button onClick={moveToTrash} className={deleteButtonClass}>
               삭제
             </button>
           </div>
         </div>
 
-        <div className="w-full aspect-[2/1] overflow-hidden rounded-3xl border border-white/10 bg-white/5 mb-8">
-          <img
-            src={
-              webtoon.main_image_url ||
-              webtoon.cover_url
-            }
-            alt=""
-            className="w-full h-full object-cover"
-          />
-        </div>
+        <section className="flex flex-col md:flex-row gap-6 md:gap-10 mb-10">
+          <div className="w-full md:w-1/3 aspect-[2/1] overflow-hidden rounded-3xl border border-white/10 bg-white/5 shrink-0">
+            <img
+              src={webtoon.main_image_url || webtoon.cover_url}
+              alt=""
+              className="w-full h-full object-cover"
+            />
+          </div>
 
-        <div className="mb-10">
-          <h1 className="text-3xl md:text-5xl font-bold mb-4">
-            {webtoon.title}
-          </h1>
+          <div className="flex-1 min-w-0 flex flex-col justify-center">
+            <h1 className="text-3xl md:text-5xl font-bold mb-4">
+              {webtoon.title}
+            </h1>
 
-          <p className="text-white/70 leading-relaxed text-sm md:text-base whitespace-pre-wrap">
-            {webtoon.description ||
-              "설명이 없는 작품"}
-          </p>
-        </div>
+            <p className="text-white/70 leading-relaxed text-sm md:text-base whitespace-pre-wrap">
+              {webtoon.description || "설명이 없는 작품"}
+            </p>
+          </div>
+        </section>
 
         {selectImageMode && (
           <div className="mb-10">
-            <h2 className="text-xl font-bold mb-4">
-              메인사진 선택
-            </h2>
+            <h2 className="text-xl font-bold mb-4">메인사진 선택</h2>
 
             <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
               {images.map((image) => (
                 <button
                   key={image.id}
-                  onClick={() =>
-                    updateMainImage(image.url)
-                  }
+                  onClick={() => updateMainImage(image.url)}
                   className={`relative aspect-square overflow-hidden rounded-xl border ${
-                    webtoon.main_image_url ===
-                    image.url
+                    webtoon.main_image_url === image.url
                       ? "border-red-500 border-2"
                       : "border-white/15"
                   }`}
@@ -318,9 +260,7 @@ export default function WebtoonDetailPage() {
 
         <section>
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl md:text-3xl font-bold">
-              EPISODES
-            </h2>
+            <h2 className="text-2xl md:text-3xl font-bold">EPISODES</h2>
 
             <div className="text-white/50 text-sm md:text-base">
               총 {episodes.length}화
@@ -336,8 +276,7 @@ export default function WebtoonDetailPage() {
               >
                 <div className="flex items-center justify-between gap-3">
                   <div className="text-base md:text-lg font-bold truncate">
-                    {episode.title ||
-                      "제목 없는 에피소드"}
+                    {episode.title || "제목 없는 에피소드"}
                   </div>
 
                   <div className="text-xs md:text-sm text-white/50 whitespace-nowrap">
@@ -348,9 +287,7 @@ export default function WebtoonDetailPage() {
             ))}
 
             {episodes.length === 0 && (
-              <p className="text-white/40">
-                아직 에피소드가 없어.
-              </p>
+              <p className="text-white/40">아직 에피소드가 없어.</p>
             )}
           </div>
         </section>
