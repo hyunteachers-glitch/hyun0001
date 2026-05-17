@@ -26,6 +26,11 @@ type ImageItem = {
   url: string;
 };
 
+type EditedEpisode = {
+  title: string;
+  episode_no: string;
+};
+
 export default function WebtoonDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -41,6 +46,11 @@ export default function WebtoonDetailPage() {
 
   const [titleInput, setTitleInput] = useState("");
   const [descriptionInput, setDescriptionInput] = useState("");
+
+  const [episodeEditMode, setEpisodeEditMode] = useState(false);
+  const [episodeDeleteMode, setEpisodeDeleteMode] = useState(false);
+  const [editedEpisodes, setEditedEpisodes] = useState<Record<number, EditedEpisode>>({});
+  const [deleteTargets, setDeleteTargets] = useState<number[]>([]);
 
   useEffect(() => {
     if (!webtoonId) return;
@@ -106,6 +116,7 @@ export default function WebtoonDetailPage() {
 
   async function saveTitle() {
     if (!webtoon) return;
+
     if (!titleInput.trim()) {
       alert("제목을 입력해줘.");
       return;
@@ -117,6 +128,11 @@ export default function WebtoonDetailPage() {
       .eq("id", webtoon.id);
 
     if (error) {
+      if (error.code === "23505") {
+        alert("이미 같은 제목의 작품이 있어.");
+        return;
+      }
+
       alert(error.message);
       return;
     }
@@ -177,6 +193,149 @@ export default function WebtoonDetailPage() {
     }
 
     router.push("/library");
+  }
+
+  function startEpisodeEditMode() {
+    const initial: Record<number, EditedEpisode> = {};
+
+    episodes.forEach((episode) => {
+      initial[episode.id] = {
+        title: episode.title || "",
+        episode_no: String(episode.episode_no),
+      };
+    });
+
+    setEditedEpisodes(initial);
+    setDeleteTargets([]);
+    setEpisodeDeleteMode(false);
+    setEpisodeEditMode(true);
+  }
+
+  function startEpisodeDeleteMode() {
+    setDeleteTargets([]);
+    setEditedEpisodes({});
+    setEpisodeEditMode(false);
+    setEpisodeDeleteMode(true);
+  }
+
+  function cancelEpisodeModes() {
+    setEpisodeEditMode(false);
+    setEpisodeDeleteMode(false);
+    setEditedEpisodes({});
+    setDeleteTargets([]);
+  }
+
+  function updateEditedEpisodeTitle(id: number, value: string) {
+    setEditedEpisodes((prev) => ({
+      ...prev,
+      [id]: {
+        title: value,
+        episode_no: prev[id]?.episode_no || "",
+      },
+    }));
+  }
+
+  function updateEditedEpisodeNo(id: number, value: string) {
+    setEditedEpisodes((prev) => ({
+      ...prev,
+      [id]: {
+        title: prev[id]?.title || "",
+        episode_no: value,
+      },
+    }));
+  }
+
+  async function completeEpisodeEdit() {
+    for (const episode of episodes) {
+      const edited = editedEpisodes[episode.id];
+      if (!edited) continue;
+
+      const episodeNo = Number(edited.episode_no);
+
+      if (!edited.episode_no.trim()) {
+        alert("화수는 비워둘 수 없어.");
+        return;
+      }
+
+      if (!Number.isInteger(episodeNo) || episodeNo <= 0) {
+        alert("화수는 1 이상의 정수로 입력해줘.");
+        return;
+      }
+    }
+
+    const usedNumbers = new Set<number>();
+
+    for (const episode of episodes) {
+      const edited = editedEpisodes[episode.id];
+      if (!edited) continue;
+
+      const episodeNo = Number(edited.episode_no);
+
+      if (usedNumbers.has(episodeNo)) {
+        alert("같은 화수가 중복되어 있어.");
+        return;
+      }
+
+      usedNumbers.add(episodeNo);
+    }
+
+    for (const episode of episodes) {
+      const edited = editedEpisodes[episode.id];
+      if (!edited) continue;
+
+      const { error } = await supabase
+        .from("episodes")
+        .update({
+          title: edited.title.trim(),
+          episode_no: Number(edited.episode_no),
+        })
+        .eq("id", episode.id);
+
+      if (error) {
+        alert(error.message);
+        return;
+      }
+    }
+
+    await touchWebtoon();
+
+    alert("에피소드 수정 완료!");
+    cancelEpisodeModes();
+    getEpisodes();
+  }
+
+  function toggleDeleteTarget(id: number) {
+    if (deleteTargets.includes(id)) {
+      setDeleteTargets(deleteTargets.filter((target) => target !== id));
+    } else {
+      setDeleteTargets([...deleteTargets, id]);
+    }
+  }
+
+  async function completeEpisodeDelete() {
+    if (deleteTargets.length === 0) {
+      cancelEpisodeModes();
+      return;
+    }
+
+    const ok = confirm(`${deleteTargets.length}개의 에피소드를 삭제할까?`);
+    if (!ok) return;
+
+    const { error } = await supabase
+      .from("episodes")
+      .update({ deleted: true })
+      .in("id", deleteTargets);
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    await touchWebtoon();
+
+    alert("에피소드 삭제 완료!");
+    cancelEpisodeModes();
+    getEpisodes();
   }
 
   if (!webtoon) {
@@ -313,32 +472,128 @@ export default function WebtoonDetailPage() {
         )}
 
         <section>
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between gap-3 mb-6">
             <h2 className="text-2xl md:text-3xl font-bold">EPISODES</h2>
 
-            <div className="text-white/50 text-sm md:text-base">
-              총 {episodes.length}화
+            <div className="flex items-center gap-2 flex-wrap justify-end">
+              <Link href="/upload" className={episodeButtonClass}>
+                에피소드 추가
+              </Link>
+
+              <button
+                onClick={episodeEditMode ? completeEpisodeEdit : startEpisodeEditMode}
+                className={episodeEditMode ? episodeActiveButtonClass : episodeButtonClass}
+              >
+                {episodeEditMode ? "수정 완료" : "에피소드 수정"}
+              </button>
+
+              <button
+                onClick={
+                  episodeDeleteMode ? completeEpisodeDelete : startEpisodeDeleteMode
+                }
+                className={
+                  episodeDeleteMode ? episodeDeleteActiveButtonClass : episodeDeleteButtonClass
+                }
+              >
+                {episodeDeleteMode ? "삭제 완료" : "에피소드 삭제"}
+              </button>
+
+              {(episodeEditMode || episodeDeleteMode) && (
+                <button onClick={cancelEpisodeModes} className={episodeButtonClass}>
+                  취소
+                </button>
+              )}
+
+              <div className="text-white/50 text-sm md:text-base ml-1">
+                총 {episodes.length}화
+              </div>
             </div>
           </div>
 
           <div className="flex flex-col gap-3">
-            {episodes.map((episode) => (
-              <Link
-                key={episode.id}
-                href={`/viewer/${episode.id}`}
-                className="border border-white/10 rounded-2xl px-4 md:px-6 py-4 hover:bg-white/5 transition"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div className="text-base md:text-lg font-bold truncate">
-                    {episode.title || "제목 없는 에피소드"}
-                  </div>
+            {episodes.map((episode) => {
+              const edited = editedEpisodes[episode.id];
+              const isDeleteTarget = deleteTargets.includes(episode.id);
 
-                  <div className="text-xs md:text-sm text-white/50 whitespace-nowrap">
-                    {episode.episode_no}화
-                  </div>
+              return (
+                <div
+                  key={episode.id}
+                  className={`border rounded-2xl px-4 md:px-6 py-4 transition ${
+                    isDeleteTarget
+                      ? "border-red-500 bg-red-500/10"
+                      : "border-white/10 hover:bg-white/5"
+                  }`}
+                >
+                  {!episodeEditMode && !episodeDeleteMode && (
+                    <Link href={`/viewer/${episode.id}`}>
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="text-base md:text-lg font-bold truncate">
+                          {episode.title || "제목 없는 에피소드"}
+                        </div>
+
+                        <div className="text-xs md:text-sm text-white/50 whitespace-nowrap">
+                          {episode.episode_no}화
+                        </div>
+                      </div>
+                    </Link>
+                  )}
+
+                  {episodeEditMode && edited && (
+                    <div className="flex items-center gap-2 md:gap-3">
+                      <input
+                        value={edited.title}
+                        onChange={(e) =>
+                          updateEditedEpisodeTitle(episode.id, e.target.value)
+                        }
+                        placeholder="에피소드 제목"
+                        className="flex-1 min-w-0 bg-black border border-white/20 rounded-xl px-3 md:px-4 py-2 md:py-3 outline-none text-white text-sm md:text-base font-bold"
+                      />
+
+                      <input
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={edited.episode_no}
+                        onChange={(e) =>
+                          updateEditedEpisodeNo(episode.id, e.target.value)
+                        }
+                        placeholder="화수"
+                        className="w-[74px] md:w-[110px] bg-black border border-white/20 rounded-xl px-2 md:px-4 py-2 md:py-3 outline-none text-center text-white text-sm md:text-base"
+                      />
+                    </div>
+                  )}
+
+                  {episodeDeleteMode && (
+                    <button
+                      onClick={() => toggleDeleteTarget(episode.id)}
+                      className="w-full text-left"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="text-base md:text-lg font-bold truncate">
+                          {episode.title || "제목 없는 에피소드"}
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                          <div className="text-xs md:text-sm text-white/50 whitespace-nowrap">
+                            {episode.episode_no}화
+                          </div>
+
+                          <div
+                            className={`border px-3 py-1 rounded-xl text-xs md:text-sm ${
+                              isDeleteTarget
+                                ? "border-red-500 bg-red-500 text-white"
+                                : "border-red-500 text-red-400"
+                            }`}
+                          >
+                            {isDeleteTarget ? "선택됨" : "선택"}
+                          </div>
+                        </div>
+                      </div>
+                    </button>
+                  )}
                 </div>
-              </Link>
-            ))}
+              );
+            })}
 
             {episodes.length === 0 && (
               <p className="text-white/40">아직 에피소드가 없어.</p>
@@ -361,3 +616,15 @@ const deleteButtonClass =
 
 const smallButtonClass =
   "border border-white px-4 py-2 rounded-xl hover:bg-white hover:text-black transition whitespace-nowrap";
+
+const episodeButtonClass =
+  "border border-white/30 px-3 md:px-4 py-2 rounded-xl hover:bg-white hover:text-black transition text-xs md:text-sm whitespace-nowrap";
+
+const episodeActiveButtonClass =
+  "border border-white px-3 md:px-4 py-2 rounded-xl bg-white text-black transition text-xs md:text-sm whitespace-nowrap";
+
+const episodeDeleteButtonClass =
+  "border border-red-500 text-red-400 px-3 md:px-4 py-2 rounded-xl hover:bg-red-500 hover:text-white transition text-xs md:text-sm whitespace-nowrap";
+
+const episodeDeleteActiveButtonClass =
+  "border border-red-500 bg-red-500 text-white px-3 md:px-4 py-2 rounded-xl transition text-xs md:text-sm whitespace-nowrap";
