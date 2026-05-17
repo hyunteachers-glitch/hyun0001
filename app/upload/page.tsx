@@ -36,6 +36,8 @@ export default function UploadPage() {
 
   const [episodeTitle, setEpisodeTitle] = useState("");
   const [selectedWebtoonId, setSelectedWebtoonId] = useState("");
+  const [webtoonSearch, setWebtoonSearch] = useState("");
+
   const [selectedImages, setSelectedImages] = useState<string[]>([]);
   const [deleteTargets, setDeleteTargets] = useState<number[]>([]);
 
@@ -293,6 +295,7 @@ export default function UploadPage() {
 
     setEpisodeTitle("");
     setSelectedWebtoonId("");
+    setWebtoonSearch("");
     setSelectedImages([]);
     setRangeStartId(null);
   }
@@ -321,6 +324,10 @@ export default function UploadPage() {
     setRangeStartId(null);
     getImages();
   }
+
+  const filteredWebtoons = webtoons.filter((toon) =>
+    toon.title.toLowerCase().includes(webtoonSearch.toLowerCase())
+  );
 
   return (
     <main className="min-h-screen bg-black text-white px-4 md:px-8 py-8">
@@ -449,13 +456,20 @@ export default function UploadPage() {
 
       {mode === "episode" && (
         <div className="mb-8 max-w-[720px] flex flex-col gap-3">
+          <input
+            value={webtoonSearch}
+            onChange={(e) => setWebtoonSearch(e.target.value)}
+            placeholder="작품 검색"
+            className={inputClass}
+          />
+
           <select
             value={selectedWebtoonId}
             onChange={(e) => setSelectedWebtoonId(e.target.value)}
             className={inputClass}
           >
             <option value="">작품 선택</option>
-            {webtoons.map((toon) => (
+            {filteredWebtoons.map((toon) => (
               <option key={toon.id} value={toon.id}>
                 {toon.title}
               </option>
