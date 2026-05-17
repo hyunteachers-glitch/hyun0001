@@ -18,25 +18,28 @@ type WebtoonItem = {
 export default function UploadPage() {
   const [images, setImages] = useState<ImageItem[]>([]);
   const [webtoons, setWebtoons] = useState<WebtoonItem[]>([]);
-  const [uploading, setUploading] = useState(false);
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
 
-  const [mode, setMode] = useState<"gallery" | "work" | "episode" | "delete">(
-    "gallery"
-  );
+  const [uploading, setUploading] = useState(false);
+
+  const [mode, setMode] = useState<
+    "gallery" | "work" | "episode" | "delete"
+  >("gallery");
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+
   const [coverUrl, setCoverUrl] = useState("");
+  const [mainImageUrl, setMainImageUrl] = useState("");
+
+  const [selectMode, setSelectMode] = useState<
+    "none" | "thumbnail" | "main"
+  >("none");
 
   const [episodeTitle, setEpisodeTitle] = useState("");
   const [selectedWebtoonId, setSelectedWebtoonId] = useState("");
+
   const [selectedImages, setSelectedImages] = useState<string[]>([]);
-
   const [deleteTargets, setDeleteTargets] = useState<number[]>([]);
-
-  const [rangeMode, setRangeMode] = useState(false);
-  const [rangeStartId, setRangeStartId] = useState<number | null>(null);
 
   useEffect(() => {
     getImages();
@@ -62,7 +65,7 @@ export default function UploadPage() {
       .from("webtoons")
       .select("*")
       .eq("deleted", false)
-      .order("id", { ascending: false });
+      .order("updated_at", { ascending: false });
 
     if (error) {
       alert(error.message);
@@ -72,19 +75,12 @@ export default function UploadPage() {
     setWebtoons(data || []);
   }
 
-  function resetRange() {
-    setRangeMode(false);
-    setRangeStartId(null);
-  }
-
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const files = e.target.files;
 
     if (!files || files.length === 0) return;
 
     setUploading(true);
-    setMode("gallery");
-    resetRange();
 
     for (const file of Array.from(files)) {
       const filePath = `uploads/${Date.now()}-${file.name}`;
@@ -109,93 +105,45 @@ export default function UploadPage() {
     getImages();
   }
 
-  function getRangeItems(startId: number, endId: number) {
-    const startIndex = images.findIndex((image) => image.id === startId);
-    const endIndex = images.findIndex((image) => image.id === endId);
-
-    if (startIndex === -1 || endIndex === -1) return [];
-
-    if (startIndex <= endIndex) {
-      return images.slice(startIndex, endIndex + 1);
-    }
-
-    return images.slice(endIndex, startIndex + 1).reverse();
-  }
-
-  function toggleEpisodeImage(item: ImageItem) {
-    if (rangeMode) {
-      if (rangeStartId === null) {
-        setRangeStartId(item.id);
-        setSelectedImages([item.url]);
-        return;
+  function handleImageClick(item: ImageItem) {
+    if (mode === "delete") {
+      if (deleteTargets.includes(item.id)) {
+        setDeleteTargets(
+          deleteTargets.filter((target) => target !== item.id)
+        );
+      } else {
+        setDeleteTargets([...deleteTargets, item.id]);
       }
 
-      const rangeItems = getRangeItems(rangeStartId, item.id);
-      setSelectedImages(rangeItems.map((image) => image.url));
-      setRangeStartId(null);
       return;
     }
 
-    if (selectedImages.includes(item.url)) {
-      setSelectedImages(selectedImages.filter((url) => url !== item.url));
-    } else {
-      setSelectedImages([...selectedImages, item.url]);
-    }
-  }
-
-  function toggleDeleteTarget(item: ImageItem) {
-    if (rangeMode) {
-      if (rangeStartId === null) {
-        setRangeStartId(item.id);
-        setDeleteTargets([item.id]);
-        return;
+    if (mode === "episode") {
+      if (selectedImages.includes(item.url)) {
+        setSelectedImages(
+          selectedImages.filter((url) => url !== item.url)
+        );
+      } else {
+        setSelectedImages([...selectedImages, item.url]);
       }
 
-      const rangeItems = getRangeItems(rangeStartId, item.id);
-      setDeleteTargets(rangeItems.map((image) => image.id));
-      setRangeStartId(null);
       return;
     }
 
-    if (deleteTargets.includes(item.id)) {
-      setDeleteTargets(deleteTargets.filter((id) => id !== item.id));
-    } else {
-      setDeleteTargets([...deleteTargets, item.id]);
-    }
-  }
-
-  async function completeDelete() {
-    if (deleteTargets.length === 0) {
-      alert("삭제할 사진을 선택해줘.");
-      return;
-    }
-
-    const ok = confirm(`${deleteTargets.length}개의 사진을 삭제할까?`);
-    if (!ok) return;
-
-    const targetImages = images.filter((image) =>
-      deleteTargets.includes(image.id)
-    );
-
-    for (const image of targetImages) {
-      const filePath = image.url.split("/webtoon/")[1];
-
-      if (filePath) {
-        await supabase.storage.from("webtoon").remove([filePath]);
+    if (mode === "work") {
+      if (selectMode === "thumbnail") {
+        setCoverUrl(item.url);
       }
 
-      await supabase.from("images").delete().eq("id", image.id);
+      if (selectMode === "main") {
+        setMainImageUrl(item.url);
+      }
     }
-
-    setDeleteTargets([]);
-    setMode("gallery");
-    resetRange();
-    getImages();
   }
 
   async function createWork() {
     if (!title.trim()) {
-      alert("작품 이름을 입력해줘.");
+      alert("작품 제목을 입력해줘.");
       return;
     }
 
@@ -204,11 +152,17 @@ export default function UploadPage() {
       return;
     }
 
+    if (!mainImageUrl) {
+      alert("메인 사진을 선택해줘.");
+      return;
+    }
+
     const { error } = await supabase.from("webtoons").insert([
       {
         title: title.trim(),
         description: description.trim(),
         cover_url: coverUrl,
+        main_image_url: mainImageUrl,
         deleted: false,
         updated_at: new Date().toISOString(),
       },
@@ -224,8 +178,9 @@ export default function UploadPage() {
     setTitle("");
     setDescription("");
     setCoverUrl("");
-    setMode("gallery");
-    resetRange();
+    setMainImageUrl("");
+    setSelectMode("none");
+
     getWebtoons();
   }
 
@@ -288,7 +243,9 @@ export default function UploadPage() {
 
     await supabase
       .from("webtoons")
-      .update({ updated_at: new Date().toISOString() })
+      .update({
+        updated_at: new Date().toISOString(),
+      })
       .eq("id", Number(selectedWebtoonId));
 
     alert("에피소드 생성 완료!");
@@ -296,42 +253,39 @@ export default function UploadPage() {
     setEpisodeTitle("");
     setSelectedWebtoonId("");
     setSelectedImages([]);
-    setMode("gallery");
-    resetRange();
   }
 
-  function handleImageClick(item: ImageItem) {
-    if (mode === "gallery") {
-      setPreviewImage(item.url);
+  async function completeDelete() {
+    if (deleteTargets.length === 0) {
+      alert("삭제할 사진을 선택해줘.");
       return;
     }
 
-    if (mode === "work") {
-      setCoverUrl(item.url);
-      return;
+    const ok = confirm(`${deleteTargets.length}개의 사진을 삭제할까?`);
+
+    if (!ok) return;
+
+    const targetImages = images.filter((image) =>
+      deleteTargets.includes(image.id)
+    );
+
+    for (const image of targetImages) {
+      const filePath = image.url.split("/webtoon/")[1];
+
+      if (filePath) {
+        await supabase.storage
+          .from("webtoon")
+          .remove([filePath]);
+      }
+
+      await supabase
+        .from("images")
+        .delete()
+        .eq("id", image.id);
     }
 
-    if (mode === "episode") {
-      toggleEpisodeImage(item);
-      return;
-    }
-
-    if (mode === "delete") {
-      toggleDeleteTarget(item);
-    }
-  }
-
-  function changeMode(nextMode: "gallery" | "work" | "episode" | "delete") {
-    setMode(nextMode);
-    resetRange();
-
-    if (nextMode !== "episode") {
-      setSelectedImages([]);
-    }
-
-    if (nextMode !== "delete") {
-      setDeleteTargets([]);
-    }
+    setDeleteTargets([]);
+    getImages();
   }
 
   return (
@@ -339,8 +293,9 @@ export default function UploadPage() {
       <div className="flex flex-col gap-6 mb-8">
         <div>
           <h1 className="text-5xl font-bold mb-3">UPLOAD</h1>
+
           <p className="text-white/50">
-            갤러리 관리 / 작품 생성 / 에피소드 생성
+            갤러리 / 작품 생성 / 에피소드 생성
           </p>
         </div>
 
@@ -351,6 +306,7 @@ export default function UploadPage() {
 
           <label className={buttonClass}>
             갤러리 추가
+
             <input
               type="file"
               multiple
@@ -360,17 +316,27 @@ export default function UploadPage() {
           </label>
 
           <button
-            onClick={() => changeMode(mode === "work" ? "gallery" : "work")}
-            className={mode === "work" ? activeButtonClass : buttonClass}
+            onClick={() =>
+              setMode(mode === "work" ? "gallery" : "work")
+            }
+            className={
+              mode === "work"
+                ? activeButtonClass
+                : buttonClass
+            }
           >
             작품 생성
           </button>
 
           <button
             onClick={() =>
-              changeMode(mode === "episode" ? "gallery" : "episode")
+              setMode(mode === "episode" ? "gallery" : "episode")
             }
-            className={mode === "episode" ? activeButtonClass : buttonClass}
+            className={
+              mode === "episode"
+                ? activeButtonClass
+                : buttonClass
+            }
           >
             에피소드 생성
           </button>
@@ -380,24 +346,30 @@ export default function UploadPage() {
               if (mode === "delete") {
                 completeDelete();
               } else {
-                changeMode("delete");
+                setMode("delete");
               }
             }}
-            className={mode === "delete" ? deleteActiveClass : deleteButtonClass}
+            className={
+              mode === "delete"
+                ? deleteActiveClass
+                : deleteButtonClass
+            }
           >
             {mode === "delete" ? "삭제 완료" : "삭제"}
           </button>
         </div>
       </div>
 
-      {uploading && <p className="mb-6 text-white/60">업로드 중...</p>}
+      {uploading && (
+        <p className="mb-6 text-white/60">업로드 중...</p>
+      )}
 
       {mode === "work" && (
         <div className="mb-8 max-w-[720px] flex flex-col gap-3">
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="작품 이름"
+            placeholder="작품 제목"
             className={inputClass}
           />
 
@@ -408,7 +380,60 @@ export default function UploadPage() {
             className={`${inputClass} min-h-[100px] resize-y`}
           />
 
-          <button onClick={createWork} className={buttonClass}>
+          <div className="flex gap-3 flex-wrap">
+            <button
+              onClick={() => setSelectMode("thumbnail")}
+              className={
+                selectMode === "thumbnail"
+                  ? activeButtonClass
+                  : buttonClass
+              }
+            >
+              썸네일 선택
+            </button>
+
+            <button
+              onClick={() => setSelectMode("main")}
+              className={
+                selectMode === "main"
+                  ? activeButtonClass
+                  : buttonClass
+              }
+            >
+              메인사진 선택
+            </button>
+          </div>
+
+          <div className="flex gap-6 flex-wrap">
+            {coverUrl && (
+              <div>
+                <p className="mb-2 text-white/60">썸네일</p>
+
+                <img
+                  src={coverUrl}
+                  alt=""
+                  className="w-[120px] h-[120px] object-cover rounded-xl border border-white/20"
+                />
+              </div>
+            )}
+
+            {mainImageUrl && (
+              <div>
+                <p className="mb-2 text-white/60">메인사진</p>
+
+                <img
+                  src={mainImageUrl}
+                  alt=""
+                  className="w-[240px] h-[120px] object-cover rounded-xl border border-white/20"
+                />
+              </div>
+            )}
+          </div>
+
+          <button
+            onClick={createWork}
+            className={buttonClass}
+          >
             작품 만들기
           </button>
         </div>
@@ -418,10 +443,13 @@ export default function UploadPage() {
         <div className="mb-8 max-w-[720px] flex flex-col gap-3">
           <select
             value={selectedWebtoonId}
-            onChange={(e) => setSelectedWebtoonId(e.target.value)}
+            onChange={(e) =>
+              setSelectedWebtoonId(e.target.value)
+            }
             className={inputClass}
           >
             <option value="">작품 선택</option>
+
             {webtoons.map((toon) => (
               <option key={toon.id} value={toon.id}>
                 {toon.title}
@@ -431,82 +459,47 @@ export default function UploadPage() {
 
           <input
             value={episodeTitle}
-            onChange={(e) => setEpisodeTitle(e.target.value)}
+            onChange={(e) =>
+              setEpisodeTitle(e.target.value)
+            }
             placeholder="에피소드 제목"
             className={inputClass}
           />
 
-          <div className="flex gap-3 flex-wrap">
-            <button onClick={createEpisode} className={buttonClass}>
-              에피소드 만들기
-            </button>
-
-            <button
-              onClick={() => {
-                setRangeMode(!rangeMode);
-                setRangeStartId(null);
-              }}
-              className={rangeMode ? activeButtonClass : buttonClass}
-            >
-              {rangeMode ? "범위 선택 중" : "범위 선택"}
-            </button>
-          </div>
-
-          <p className="text-white/50">
-            범위 선택은 시작 사진을 누르고 끝 사진을 누르면, 시작부터 끝까지
-            번호가 순서대로 붙어.
-          </p>
-        </div>
-      )}
-
-      {mode === "delete" && (
-        <div className="mb-8 max-w-[720px] flex flex-col gap-3">
-          <div className="flex gap-3 flex-wrap">
-            <button
-              onClick={() => {
-                setRangeMode(!rangeMode);
-                setRangeStartId(null);
-              }}
-              className={rangeMode ? activeButtonClass : buttonClass}
-            >
-              {rangeMode ? "범위 선택 중" : "범위 선택"}
-            </button>
-
-            <button
-              onClick={() => {
-                setDeleteTargets([]);
-                resetRange();
-              }}
-              className={buttonClass}
-            >
-              선택 초기화
-            </button>
-          </div>
-
-          <p className="text-white/50">
-            삭제할 사진을 여러 장 선택한 뒤, 위의 삭제 완료 버튼을 누르면
-            한 번에 삭제돼.
-          </p>
+          <button
+            onClick={createEpisode}
+            className={buttonClass}
+          >
+            에피소드 만들기
+          </button>
         </div>
       )}
 
       <div className="grid grid-cols-3 md:grid-cols-10 gap-2 md:gap-3">
         {images.map((item) => {
-          const isCover = coverUrl === item.url;
-          const selected = selectedImages.includes(item.url);
-          const order = selectedImages.indexOf(item.url) + 1;
-          const deleteSelected = deleteTargets.includes(item.id);
-          const deleteOrder = deleteTargets.indexOf(item.id) + 1;
-          const isRangeStart = rangeStartId === item.id;
+          const selected =
+            selectedImages.includes(item.url);
+
+          const deleteSelected =
+            deleteTargets.includes(item.id);
+
+          const isThumbnail =
+            coverUrl === item.url;
+
+          const isMain =
+            mainImageUrl === item.url;
 
           return (
             <button
               key={item.id}
               onClick={() => handleImageClick(item)}
-              className={`relative aspect-square overflow-hidden rounded-xl ${
-                isCover || selected || deleteSelected || isRangeStart
-                  ? "border-2 border-red-500"
-                  : "border border-white/15"
+              className={`relative aspect-square overflow-hidden rounded-xl border ${
+                selected ||
+                deleteSelected ||
+                isThumbnail ||
+                isMain
+                  ? "border-red-500 border-2"
+                  : "border-white/15"
               }`}
             >
               <img
@@ -515,50 +508,21 @@ export default function UploadPage() {
                 className="w-full h-full object-cover"
               />
 
-              {isCover && mode === "work" && (
+              {isThumbnail && (
                 <div className="absolute left-1 bottom-1 bg-white text-black text-[10px] font-bold px-2 py-1 rounded-md">
                   썸네일
                 </div>
               )}
 
-              {selected && mode === "episode" && (
-                <div className="absolute top-1 right-1 w-7 h-7 bg-red-500 text-white flex items-center justify-center font-bold">
-                  {order}
-                </div>
-              )}
-
-              {deleteSelected && mode === "delete" && (
-                <div className="absolute top-1 right-1 w-7 h-7 bg-red-500 text-white flex items-center justify-center font-bold">
-                  {deleteOrder}
-                </div>
-              )}
-
-              {isRangeStart && rangeMode && (
-                <div className="absolute left-1 bottom-1 bg-white text-black text-[10px] font-bold px-2 py-1 rounded-md">
-                  시작
+              {isMain && (
+                <div className="absolute right-1 bottom-1 bg-white text-black text-[10px] font-bold px-2 py-1 rounded-md">
+                  메인
                 </div>
               )}
             </button>
           );
         })}
       </div>
-
-      {previewImage && (
-        <div className="fixed inset-0 z-[9999] bg-black/95 flex items-center justify-center p-5">
-          <button
-            onClick={() => setPreviewImage(null)}
-            className="absolute top-5 right-5 border border-white px-5 py-2 rounded-full"
-          >
-            닫기
-          </button>
-
-          <img
-            src={previewImage}
-            alt=""
-            className="max-w-[92vw] max-h-[90vh] object-contain"
-          />
-        </div>
-      )}
     </main>
   );
 }
