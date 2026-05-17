@@ -8,6 +8,7 @@ type WebtoonItem = {
   id: number;
   title: string;
   cover_url: string;
+  description?: string | null;
   deleted: boolean;
   updated_at: string | null;
   created_at?: string | null;
@@ -17,15 +18,28 @@ type EpisodeRow = {
   webtoon_id: number;
 };
 
+type ImageItem = {
+  id: number;
+  url: string;
+};
+
 export default function LibraryPage() {
   const [webtoons, setWebtoons] = useState<WebtoonItem[]>([]);
   const [trashWebtoons, setTrashWebtoons] = useState<WebtoonItem[]>([]);
+  const [images, setImages] = useState<ImageItem[]>([]);
   const [episodeCounts, setEpisodeCounts] = useState<Record<number, number>>({});
+
   const [search, setSearch] = useState("");
   const [sortType, setSortType] = useState<"latest" | "abc">("latest");
   const [page, setPage] = useState(1);
   const [isMobile, setIsMobile] = useState(false);
   const [showTrash, setShowTrash] = useState(false);
+
+  const [editMode, setEditMode] = useState(false);
+  const [editingWebtoonId, setEditingWebtoonId] = useState<number | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editCoverUrl, setEditCoverUrl] = useState("");
 
   const itemsPerPage = isMobile ? 40 : 60;
 
@@ -33,6 +47,7 @@ export default function LibraryPage() {
     getWebtoons();
     getTrashWebtoons();
     getEpisodeCounts();
+    getImages();
 
     function checkMobile() {
       setIsMobile(window.innerWidth < 768);
@@ -77,6 +92,20 @@ export default function LibraryPage() {
     setTrashWebtoons(data || []);
   }
 
+  async function getImages() {
+    const { data, error } = await supabase
+      .from("images")
+      .select("*")
+      .order("id", { ascending: false });
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    setImages(data || []);
+  }
+
   async function getEpisodeCounts() {
     const { data, error } = await supabase
       .from("episodes")
@@ -95,6 +124,63 @@ export default function LibraryPage() {
     });
 
     setEpisodeCounts(counts);
+  }
+
+  function startEditWebtoon(toon: WebtoonItem) {
+    setEditingWebtoonId(toon.id);
+    setEditTitle(toon.title);
+    setEditDescription(toon.description || "");
+    setEditCoverUrl(toon.cover_url || "");
+  }
+
+  async function completeEditWebtoon() {
+    if (!editingWebtoonId) {
+      alert("수정할 작품을 선택해줘.");
+      return;
+    }
+
+    if (!editTitle.trim()) {
+      alert("제목을 입력해줘.");
+      return;
+    }
+
+    if (!editCoverUrl) {
+      alert("썸네일 사진을 선택해줘.");
+      return;
+    }
+
+    const { error } = await supabase
+      .from("webtoons")
+      .update({
+        title: editTitle.trim(),
+        description: editDescription.trim(),
+        cover_url: editCoverUrl,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", editingWebtoonId);
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    alert("작품 수정 완료!");
+
+    setEditMode(false);
+    setEditingWebtoonId(null);
+    setEditTitle("");
+    setEditDescription("");
+    setEditCoverUrl("");
+
+    getWebtoons();
+  }
+
+  function cancelEditWebtoon() {
+    setEditMode(false);
+    setEditingWebtoonId(null);
+    setEditTitle("");
+    setEditDescription("");
+    setEditCoverUrl("");
   }
 
   async function restoreWebtoon(id: number) {
@@ -259,6 +345,8 @@ export default function LibraryPage() {
   }
 
   function Card({ toon, trash = false }: { toon: WebtoonItem; trash?: boolean }) {
+    const selected = editingWebtoonId === toon.id;
+
     const cardInner = (
       <div
         style={{
@@ -268,11 +356,19 @@ export default function LibraryPage() {
           minHeight: cardHeight,
           borderRadius: "14px",
           overflow: "hidden",
-          border: trash
+          border: selected
+            ? "2px solid rgb(239,68,68)"
+            : trash
             ? "1px solid rgba(239,68,68,0.65)"
             : "1px solid rgba(255,255,255,0.28)",
-          background: "rgba(255,255,255,0.02)",
+          background: selected
+            ? "rgba(239,68,68,0.12)"
+            : "rgba(255,255,255,0.02)",
           color: "white",
+          cursor: editMode && !trash ? "pointer" : "default",
+        }}
+        onClick={() => {
+          if (editMode && !trash) startEditWebtoon(toon);
         }}
       >
         <Thumbnail toon={toon} trash={trash} />
@@ -314,7 +410,7 @@ export default function LibraryPage() {
       </div>
     );
 
-    if (trash) return cardInner;
+    if (trash || editMode) return cardInner;
 
     return (
       <Link
@@ -334,7 +430,7 @@ export default function LibraryPage() {
           <p className="text-white/50">웹툰 보관 공간</p>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap justify-end">
           <Link
             href="/"
             className="border border-white px-4 py-2 rounded-full hover:bg-white hover:text-black transition"
@@ -348,8 +444,98 @@ export default function LibraryPage() {
           >
             UPLOAD
           </Link>
+
+          <button
+            onClick={() => {
+              setEditMode(!editMode);
+              setEditingWebtoonId(null);
+              setEditTitle("");
+              setEditDescription("");
+              setEditCoverUrl("");
+            }}
+            className={
+              editMode
+                ? "border border-white px-4 py-2 rounded-full bg-white text-black transition"
+                : "border border-white px-4 py-2 rounded-full hover:bg-white hover:text-black transition"
+            }
+          >
+            작품 수정
+          </button>
         </div>
       </div>
+
+      {editMode && (
+        <section className="mb-10 border border-white/15 rounded-3xl p-5 bg-white/[0.02]">
+          <h2 className="text-2xl font-bold mb-4">작품 수정</h2>
+
+          <div className="flex flex-col gap-3 max-w-[720px]">
+            <input
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+              placeholder="작품 제목"
+              className="border border-white/25 rounded-2xl px-4 py-3 bg-black text-white outline-none"
+            />
+
+            <textarea
+              value={editDescription}
+              onChange={(e) => setEditDescription(e.target.value)}
+              placeholder="작품 설명"
+              className="border border-white/25 rounded-2xl px-4 py-3 bg-black text-white outline-none min-h-[100px] resize-y"
+            />
+
+            <div className="flex gap-4 items-end flex-wrap">
+              {editCoverUrl && (
+                <div>
+                  <p className="text-white/50 text-sm mb-2">선택한 썸네일</p>
+                  <img
+                    src={editCoverUrl}
+                    alt=""
+                    className="w-[110px] h-[110px] object-cover rounded-xl border border-white/20"
+                  />
+                </div>
+              )}
+
+              <button
+                onClick={completeEditWebtoon}
+                className="border border-white px-5 py-3 rounded-full hover:bg-white hover:text-black transition"
+              >
+                완료
+              </button>
+
+              <button
+                onClick={cancelEditWebtoon}
+                className="border border-white/30 px-5 py-3 rounded-full hover:bg-white hover:text-black transition"
+              >
+                취소
+              </button>
+            </div>
+
+            <p className="text-white/45 text-sm">
+              수정할 작품을 먼저 클릭하고, 아래 갤러리에서 썸네일 사진을 선택해줘.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-3 md:grid-cols-10 gap-2 md:gap-3 mt-6">
+            {images.map((image) => (
+              <button
+                key={image.id}
+                onClick={() => setEditCoverUrl(image.url)}
+                className={`relative aspect-square overflow-hidden rounded-xl border ${
+                  editCoverUrl === image.url
+                    ? "border-red-500 border-2"
+                    : "border-white/15"
+                }`}
+              >
+                <img
+                  src={image.url}
+                  alt=""
+                  className="w-full h-full object-cover"
+                />
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
 
       <div className="mb-10 flex justify-center items-center gap-3 flex-wrap">
         <input
