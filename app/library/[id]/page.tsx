@@ -181,16 +181,16 @@ export default function WebtoonDetailPage() {
 
   return (
     <main className="min-h-screen bg-black text-white">
-      <div className="px-4 md:px-8 py-6 md:py-8">
-        <div className="flex items-center justify-between gap-3 flex-wrap mb-6">
+      <div className="px-4 md:px-8 py-5 md:py-8">
+        <div className="flex items-center justify-between gap-2 mb-7">
           <Link
             href="/library"
-            className="border border-white px-4 py-2 rounded-full hover:bg-white hover:text-black transition"
+            className="border border-white px-3 md:px-4 py-2 rounded-full hover:bg-white hover:text-black transition text-xs md:text-base whitespace-nowrap"
           >
             ← LIBRARY
           </Link>
 
-          <div className="flex gap-2 flex-wrap justify-end">
+          <div className="flex gap-1.5 md:gap-2 items-center justify-end flex-nowrap">
             <button onClick={editTitle} className={buttonClass}>
               제목 수정
             </button>
@@ -212,8 +212,8 @@ export default function WebtoonDetailPage() {
           </div>
         </div>
 
-        <section className="flex flex-col md:flex-row gap-6 md:gap-10 mb-10">
-          <div className="w-full md:w-1/3 aspect-[2/1] overflow-hidden rounded-3xl border border-white/10 bg-white/5 shrink-0">
+        <section className="flex flex-col md:flex-row gap-5 md:gap-10 mb-10 items-start">
+          <div className="w-full md:w-1/3 aspect-[2/1] overflow-hidden rounded-2xl md:rounded-3xl border border-white/10 bg-white/5 shrink-0">
             <img
               src={webtoon.main_image_url || webtoon.cover_url}
               alt=""
@@ -221,8 +221,8 @@ export default function WebtoonDetailPage() {
             />
           </div>
 
-          <div className="flex-1 min-w-0 flex flex-col justify-center">
-            <h1 className="text-3xl md:text-5xl font-bold mb-4">
+          <div className="flex-1 min-w-0 pt-0">
+            <h1 className="text-3xl md:text-5xl font-bold mb-4 leading-tight">
               {webtoon.title}
             </h1>
 
@@ -297,10 +297,10 @@ export default function WebtoonDetailPage() {
 }
 
 const buttonClass =
-  "border border-white/20 px-4 py-2 rounded-full hover:bg-white hover:text-black transition";
+  "border border-white/20 px-2.5 md:px-4 py-2 rounded-full hover:bg-white hover:text-black transition text-[11px] md:text-base whitespace-nowrap";
 
 const activeButtonClass =
-  "border border-white px-4 py-2 rounded-full bg-white text-black transition";
+  "border border-white px-2.5 md:px-4 py-2 rounded-full bg-white text-black transition text-[11px] md:text-base whitespace-nowrap";
 
 const deleteButtonClass =
-  "border border-red-500 text-red-400 px-4 py-2 rounded-full hover:bg-red-500 hover:text-white transition";
+  "border border-red-500 text-red-400 px-2.5 md:px-4 py-2 rounded-full hover:bg-red-500 hover:text-white transition text-[11px] md:text-base whitespace-nowrap";
