@@ -19,7 +19,9 @@ export default function UploadPage() {
   const [webtoons, setWebtoons] = useState<WebtoonItem[]>([]);
   const [uploading, setUploading] = useState(false);
 
-  const [mode, setMode] = useState<"gallery" | "work" | "episode" | "delete">("gallery");
+  const [mode, setMode] = useState<"gallery" | "work" | "episode" | "delete">(
+    "gallery"
+  );
 
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
@@ -28,7 +30,9 @@ export default function UploadPage() {
   const [coverUrl, setCoverUrl] = useState("");
   const [mainImageUrl, setMainImageUrl] = useState("");
 
-  const [selectMode, setSelectMode] = useState<"none" | "thumbnail" | "main">("none");
+  const [selectMode, setSelectMode] = useState<"none" | "thumbnail" | "main">(
+    "none"
+  );
 
   const [episodeTitle, setEpisodeTitle] = useState("");
   const [selectedWebtoonId, setSelectedWebtoonId] = useState("");
@@ -52,6 +56,22 @@ export default function UploadPage() {
     setCoverUrl("");
     setMainImageUrl("");
     setSelectMode("none");
+  }
+
+  function resetEpisode() {
+    setEpisodeTitle("");
+    setSelectedWebtoonId("");
+    setWebtoonSearch("");
+    setShowWebtoonList(false);
+    setSelectedImages([]);
+    setRangeMode(false);
+    setRangeStartId(null);
+  }
+
+  function resetDelete() {
+    setDeleteTargets([]);
+    setRangeMode(false);
+    setRangeStartId(null);
   }
 
   function normalizeTitle(value: string) {
@@ -290,16 +310,15 @@ export default function UploadPage() {
 
     alert("에피소드 생성 완료!");
 
-    setEpisodeTitle("");
-    setSelectedWebtoonId("");
-    setWebtoonSearch("");
-    setShowWebtoonList(false);
-    setSelectedImages([]);
-    setRangeStartId(null);
+    resetEpisode();
   }
 
   async function completeDelete() {
-    if (deleteTargets.length === 0) return alert("삭제할 사진을 선택해줘.");
+    if (deleteTargets.length === 0) {
+      resetDelete();
+      setMode("gallery");
+      return;
+    }
 
     const ok = confirm(`${deleteTargets.length}개의 사진을 삭제할까?`);
     if (!ok) return;
@@ -318,8 +337,8 @@ export default function UploadPage() {
       await supabase.from("images").delete().eq("id", image.id);
     }
 
-    setDeleteTargets([]);
-    setRangeStartId(null);
+    resetDelete();
+    setMode("gallery");
     getImages();
   }
 
@@ -365,8 +384,13 @@ export default function UploadPage() {
 
           <button
             onClick={() => {
-              setMode(mode === "episode" ? "gallery" : "episode");
-              setShowWebtoonList(false);
+              if (mode === "episode") {
+                resetEpisode();
+                setMode("gallery");
+              } else {
+                resetEpisode();
+                setMode("episode");
+              }
             }}
             className={mode === "episode" ? activeButtonClass : buttonClass}
           >
@@ -378,9 +402,8 @@ export default function UploadPage() {
               if (mode === "delete") {
                 completeDelete();
               } else {
+                resetDelete();
                 setMode("delete");
-                setDeleteTargets([]);
-                setRangeStartId(null);
               }
             }}
             className={mode === "delete" ? deleteActiveClass : deleteButtonClass}
@@ -461,7 +484,7 @@ export default function UploadPage() {
           <div className="relative">
             <input
               value={webtoonSearch}
-              onFocus={() => setShowWebtoonList(true)}
+              onClick={() => setShowWebtoonList((prev) => !prev)}
               onChange={(e) => {
                 setWebtoonSearch(e.target.value);
                 setSelectedWebtoonId("");
@@ -559,7 +582,11 @@ export default function UploadPage() {
               key={item.id}
               onClick={() => handleImageClick(item)}
               className={`relative aspect-square overflow-hidden rounded-xl border ${
-                selected || deleteSelected || isThumbnail || isMain || isRangeStart
+                selected ||
+                deleteSelected ||
+                isThumbnail ||
+                isMain ||
+                isRangeStart
                   ? "border-red-500 border-2"
                   : "border-white/15"
               }`}
