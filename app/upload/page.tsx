@@ -47,6 +47,14 @@ export default function UploadPage() {
     getWebtoons();
   }, []);
 
+  function resetWork() {
+    setTitle("");
+    setDescription("");
+    setCoverUrl("");
+    setMainImageUrl("");
+    setSelectMode("none");
+  }
+
   function normalizeTitle(value: string) {
     return value.trim().toLowerCase();
   }
@@ -171,14 +179,8 @@ export default function UploadPage() {
     }
 
     if (mode === "work") {
-      if (selectMode === "thumbnail") {
-        setCoverUrl(item.url);
-      }
-
-      if (selectMode === "main") {
-        setMainImageUrl(item.url);
-      }
-
+      if (selectMode === "thumbnail") setCoverUrl(item.url);
+      if (selectMode === "main") setMainImageUrl(item.url);
       return;
     }
 
@@ -195,20 +197,9 @@ export default function UploadPage() {
   async function createWork() {
     const cleanTitle = title.trim();
 
-    if (!cleanTitle) {
-      alert("작품 제목을 입력해줘.");
-      return;
-    }
-
-    if (!coverUrl) {
-      alert("썸네일을 선택해줘.");
-      return;
-    }
-
-    if (!mainImageUrl) {
-      alert("메인사진을 선택해줘.");
-      return;
-    }
+    if (!cleanTitle) return alert("작품 제목을 입력해줘.");
+    if (!coverUrl) return alert("썸네일을 선택해줘.");
+    if (!mainImageUrl) return alert("메인사진을 선택해줘.");
 
     const duplicate = webtoons.some(
       (toon) => normalizeTitle(toon.title) === normalizeTitle(cleanTitle)
@@ -242,29 +233,15 @@ export default function UploadPage() {
 
     alert("작품 생성 완료!");
 
-    setTitle("");
-    setDescription("");
-    setCoverUrl("");
-    setMainImageUrl("");
-    setSelectMode("none");
+    resetWork();
+    setMode("gallery");
     getWebtoons();
   }
 
   async function createEpisode() {
-    if (!selectedWebtoonId) {
-      alert("작품을 선택해줘.");
-      return;
-    }
-
-    if (!episodeTitle.trim()) {
-      alert("에피소드 제목을 입력해줘.");
-      return;
-    }
-
-    if (selectedImages.length === 0) {
-      alert("이미지를 선택해줘.");
-      return;
-    }
+    if (!selectedWebtoonId) return alert("작품을 선택해줘.");
+    if (!episodeTitle.trim()) return alert("에피소드 제목을 입력해줘.");
+    if (selectedImages.length === 0) return alert("이미지를 선택해줘.");
 
     const { data: existingEpisodes } = await supabase
       .from("episodes")
@@ -321,10 +298,7 @@ export default function UploadPage() {
   }
 
   async function completeDelete() {
-    if (deleteTargets.length === 0) {
-      alert("삭제할 사진을 선택해줘.");
-      return;
-    }
+    if (deleteTargets.length === 0) return alert("삭제할 사진을 선택해줘.");
 
     const ok = confirm(`${deleteTargets.length}개의 사진을 삭제할까?`);
     if (!ok) return;
@@ -367,7 +341,15 @@ export default function UploadPage() {
           </label>
 
           <button
-            onClick={() => setMode(mode === "work" ? "gallery" : "work")}
+            onClick={() => {
+              if (mode === "work") {
+                resetWork();
+                setMode("gallery");
+              } else {
+                resetWork();
+                setMode("work");
+              }
+            }}
             className={mode === "work" ? activeButtonClass : buttonClass}
           >
             작품 생성
@@ -529,6 +511,11 @@ export default function UploadPage() {
           const isMain = mainImageUrl === item.url;
           const isRangeStart = rangeStartId === item.id;
 
+          let badgeText = "";
+          if (isThumbnail && isMain) badgeText = "썸네일 · 메인";
+          else if (isThumbnail) badgeText = "썸네일";
+          else if (isMain) badgeText = "메인";
+
           return (
             <button
               key={item.id}
@@ -563,15 +550,9 @@ export default function UploadPage() {
                 </div>
               )}
 
-              {isThumbnail && (
-                <div className="absolute left-1 bottom-1 bg-white text-black text-[10px] font-bold px-2 py-1 rounded-md">
-                  썸네일
-                </div>
-              )}
-
-              {isMain && (
+              {badgeText && (
                 <div className="absolute right-1 bottom-1 bg-white text-black text-[10px] font-bold px-2 py-1 rounded-md">
-                  메인
+                  {badgeText}
                 </div>
               )}
             </button>
