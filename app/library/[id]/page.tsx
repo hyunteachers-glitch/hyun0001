@@ -224,10 +224,10 @@ export default function WebtoonDetailPage() {
   function startEpisodeEditMode() {
     const initial: Record<number, EditedEpisode> = {};
 
-    episodes.forEach((episode) => {
+    episodes.forEach((episode, index) => {
       initial[episode.id] = {
         title: episode.title || "",
-        episode_no: String(episode.episode_no),
+        episode_no: String(index + 1),
       };
     });
 
@@ -265,13 +265,13 @@ export default function WebtoonDetailPage() {
   }
 
   const hasEpisodeChanges = useMemo(() => {
-    return episodes.some((episode) => {
+    return episodes.some((episode, index) => {
       const edited = editedEpisodes[episode.id];
       if (!edited) return false;
 
       return (
         edited.title !== (episode.title || "") ||
-        edited.episode_no !== String(episode.episode_no)
+        edited.episode_no !== String(index + 1)
       );
     });
   }, [episodes, editedEpisodes]);
@@ -279,41 +279,52 @@ export default function WebtoonDetailPage() {
   async function completeEpisodeEdit() {
     if (!hasEpisodeChanges) return;
 
-    const usedNumbers = new Set<number>();
-
     for (const episode of episodes) {
       const edited = editedEpisodes[episode.id];
       if (!edited) continue;
 
-      const parsedNo = Number(edited.episode_no);
+      const targetNo = Number(edited.episode_no);
 
       if (!edited.episode_no.trim()) {
         alert("화수를 입력해줘.");
         return;
       }
 
-      if (!Number.isInteger(parsedNo) || parsedNo <= 0) {
+      if (!Number.isInteger(targetNo) || targetNo <= 0) {
         alert("화수는 1 이상의 숫자만 가능해.");
         return;
       }
-
-      if (usedNumbers.has(parsedNo)) {
-        alert("같은 화수가 중복됐어.");
-        return;
-      }
-
-      usedNumbers.add(parsedNo);
     }
 
-    for (const episode of episodes) {
+    const reordered = [...episodes].sort((a, b) => {
+      const aEdited = editedEpisodes[a.id];
+      const bEdited = editedEpisodes[b.id];
+
+      const aTarget = Number(aEdited?.episode_no || 999999);
+      const bTarget = Number(bEdited?.episode_no || 999999);
+
+      const aOriginalIndex = episodes.findIndex((item) => item.id === a.id);
+      const bOriginalIndex = episodes.findIndex((item) => item.id === b.id);
+
+      const aChanged = aEdited?.episode_no !== String(aOriginalIndex + 1);
+      const bChanged = bEdited?.episode_no !== String(bOriginalIndex + 1);
+
+      if (aTarget !== bTarget) return aTarget - bTarget;
+      if (aChanged && !bChanged) return -1;
+      if (!aChanged && bChanged) return 1;
+
+      return aOriginalIndex - bOriginalIndex;
+    });
+
+    for (let index = 0; index < reordered.length; index++) {
+      const episode = reordered[index];
       const edited = editedEpisodes[episode.id];
-      if (!edited) continue;
 
       const { error } = await supabase
         .from("episodes")
         .update({
-          title: edited.title.trim(),
-          episode_no: Number(edited.episode_no),
+          title: edited?.title.trim() || "",
+          episode_no: index + 1,
         })
         .eq("id", episode.id);
 
@@ -338,6 +349,35 @@ export default function WebtoonDetailPage() {
     }
   }
 
+  async function normalizeEpisodeNumbers() {
+    const { data, error } = await supabase
+      .from("episodes")
+      .select("*")
+      .eq("webtoon_id", webtoonId)
+      .eq("deleted", false)
+      .order("episode_no", { ascending: true })
+      .order("id", { ascending: true });
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    for (let index = 0; index < (data || []).length; index++) {
+      const episode = data![index];
+
+      const { error: updateError } = await supabase
+        .from("episodes")
+        .update({ episode_no: index + 1 })
+        .eq("id", episode.id);
+
+      if (updateError) {
+        alert(updateError.message);
+        return;
+      }
+    }
+  }
+
   async function completeEpisodeDelete() {
     if (deleteTargets.length === 0) {
       setEpisodeDeleteMode(false);
@@ -357,6 +397,7 @@ export default function WebtoonDetailPage() {
       return;
     }
 
+    await normalizeEpisodeNumbers();
     await touchWebtoon();
 
     alert("삭제 완료!");
@@ -537,7 +578,9 @@ export default function WebtoonDetailPage() {
                 <button
                   onClick={() => setEpisodeDeleteMode(!episodeDeleteMode)}
                   className={
-                    episodeDeleteMode ? episodeDeleteActiveButtonClass : episodeDeleteButtonClass
+                    episodeDeleteMode
+                      ? episodeDeleteActiveButtonClass
+                      : episodeDeleteButtonClass
                   }
                 >
                   에피소드 삭제
