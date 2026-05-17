@@ -21,6 +21,11 @@ type Episode = {
   deleted: boolean;
 };
 
+type ImageItem = {
+  id: number;
+  url: string;
+};
+
 type EditedEpisode = {
   title: string;
   episode_no: string;
@@ -29,27 +34,39 @@ type EditedEpisode = {
 export default function WebtoonDetailPage() {
   const params = useParams();
   const router = useRouter();
-
   const webtoonId = Number(params.id);
 
   const [webtoon, setWebtoon] = useState<Webtoon | null>(null);
   const [episodes, setEpisodes] = useState<Episode[]>([]);
+  const [images, setImages] = useState<ImageItem[]>([]);
+
+  const [infoEditMode, setInfoEditMode] = useState(false);
+  const [mainImageEditMode, setMainImageEditMode] = useState(false);
+  const [textCoverEditMode, setTextCoverEditMode] = useState(false);
+
+  const [titleInput, setTitleInput] = useState("");
+  const [descriptionInput, setDescriptionInput] = useState("");
+  const [coverInput, setCoverInput] = useState("");
+  const [mainImageInput, setMainImageInput] = useState("");
 
   const [episodeEditMode, setEpisodeEditMode] = useState(false);
   const [episodeDeleteMode, setEpisodeDeleteMode] = useState(false);
-
-  const [editedEpisodes, setEditedEpisodes] = useState<
-    Record<number, EditedEpisode>
-  >({});
-
+  const [editedEpisodes, setEditedEpisodes] = useState<Record<number, EditedEpisode>>({});
   const [deleteTargets, setDeleteTargets] = useState<number[]>([]);
 
   useEffect(() => {
     if (!webtoonId) return;
-
     getWebtoon();
     getEpisodes();
+    getImages();
   }, [webtoonId]);
+
+  async function touchWebtoon() {
+    await supabase
+      .from("webtoons")
+      .update({ updated_at: new Date().toISOString() })
+      .eq("id", webtoonId);
+  }
 
   async function getWebtoon() {
     const { data, error } = await supabase
@@ -64,6 +81,10 @@ export default function WebtoonDetailPage() {
     }
 
     setWebtoon(data);
+    setTitleInput(data.title || "");
+    setDescriptionInput(data.description || "");
+    setCoverInput(data.cover_url || "");
+    setMainImageInput(data.main_image_url || "");
   }
 
   async function getEpisodes() {
@@ -72,7 +93,8 @@ export default function WebtoonDetailPage() {
       .select("*")
       .eq("webtoon_id", webtoonId)
       .eq("deleted", false)
-      .order("episode_no", { ascending: true });
+      .order("episode_no", { ascending: true })
+      .order("id", { ascending: true });
 
     if (error) {
       alert(error.message);
@@ -82,13 +104,121 @@ export default function WebtoonDetailPage() {
     setEpisodes(data || []);
   }
 
-  async function touchWebtoon() {
-    await supabase
+  async function getImages() {
+    const { data, error } = await supabase
+      .from("images")
+      .select("*")
+      .order("id", { ascending: false });
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    setImages(data || []);
+  }
+
+  function openInfoEdit() {
+    if (!webtoon) return;
+
+    setInfoEditMode(true);
+    setMainImageEditMode(false);
+    setTextCoverEditMode(false);
+
+    setTitleInput(webtoon.title || "");
+    setDescriptionInput(webtoon.description || "");
+    setCoverInput(webtoon.cover_url || "");
+    setMainImageInput(webtoon.main_image_url || "");
+  }
+
+  function cancelInfoEdit() {
+    if (!webtoon) return;
+
+    setInfoEditMode(false);
+    setMainImageEditMode(false);
+    setTextCoverEditMode(false);
+
+    setTitleInput(webtoon.title || "");
+    setDescriptionInput(webtoon.description || "");
+    setCoverInput(webtoon.cover_url || "");
+    setMainImageInput(webtoon.main_image_url || "");
+  }
+
+  const hasInfoChanges = useMemo(() => {
+    if (!webtoon) return false;
+
+    return (
+      titleInput.trim() !== (webtoon.title || "") ||
+      descriptionInput !== (webtoon.description || "") ||
+      coverInput !== (webtoon.cover_url || "") ||
+      mainImageInput !== (webtoon.main_image_url || "")
+    );
+  }, [webtoon, titleInput, descriptionInput, coverInput, mainImageInput]);
+
+  async function completeInfoEdit() {
+    if (!webtoon) return;
+
+    if (!titleInput.trim()) {
+      alert("제목을 입력해줘.");
+      return;
+    }
+
+    if (!coverInput) {
+      alert("썸네일을 선택해줘.");
+      return;
+    }
+
+    if (!mainImageInput) {
+      alert("메인사진을 선택해줘.");
+      return;
+    }
+
+    const { error } = await supabase
       .from("webtoons")
       .update({
-        updated_at: new Date().toISOString(),
+        title: titleInput.trim(),
+        description: descriptionInput,
+        cover_url: coverInput,
+        main_image_url: mainImageInput,
       })
-      .eq("id", webtoonId);
+      .eq("id", webtoon.id);
+
+    if (error) {
+      if (error.code === "23505") {
+        alert("이미 같은 제목의 작품이 있어.");
+        return;
+      }
+
+      alert(error.message);
+      return;
+    }
+
+    await touchWebtoon();
+
+    alert("작품 정보 수정 완료!");
+    setInfoEditMode(false);
+    setMainImageEditMode(false);
+    setTextCoverEditMode(false);
+    getWebtoon();
+  }
+
+  async function moveToTrash() {
+    if (!webtoon) return;
+
+    const ok = confirm("이 작품을 휴지통으로 이동할까?");
+    if (!ok) return;
+
+    const { error } = await supabase
+      .from("webtoons")
+      .update({ deleted: true })
+      .eq("id", webtoon.id);
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    router.push("/library");
   }
 
   function startEpisodeEditMode() {
@@ -137,7 +267,6 @@ export default function WebtoonDetailPage() {
   const hasEpisodeChanges = useMemo(() => {
     return episodes.some((episode) => {
       const edited = editedEpisodes[episode.id];
-
       if (!edited) return false;
 
       return (
@@ -150,9 +279,10 @@ export default function WebtoonDetailPage() {
   async function completeEpisodeEdit() {
     if (!hasEpisodeChanges) return;
 
+    const usedNumbers = new Set<number>();
+
     for (const episode of episodes) {
       const edited = editedEpisodes[episode.id];
-
       if (!edited) continue;
 
       const parsedNo = Number(edited.episode_no);
@@ -166,16 +296,6 @@ export default function WebtoonDetailPage() {
         alert("화수는 1 이상의 숫자만 가능해.");
         return;
       }
-    }
-
-    const usedNumbers = new Set<number>();
-
-    for (const episode of episodes) {
-      const edited = editedEpisodes[episode.id];
-
-      if (!edited) continue;
-
-      const parsedNo = Number(edited.episode_no);
 
       if (usedNumbers.has(parsedNo)) {
         alert("같은 화수가 중복됐어.");
@@ -187,7 +307,6 @@ export default function WebtoonDetailPage() {
 
     for (const episode of episodes) {
       const edited = editedEpisodes[episode.id];
-
       if (!edited) continue;
 
       const { error } = await supabase
@@ -207,7 +326,6 @@ export default function WebtoonDetailPage() {
     await touchWebtoon();
 
     alert("에피소드 수정 완료!");
-
     cancelEpisodeModes();
     getEpisodes();
   }
@@ -222,19 +340,16 @@ export default function WebtoonDetailPage() {
 
   async function completeEpisodeDelete() {
     if (deleteTargets.length === 0) {
-      cancelEpisodeModes();
+      setEpisodeDeleteMode(false);
       return;
     }
 
     const ok = confirm(`${deleteTargets.length}개의 에피소드를 삭제할까?`);
-
     if (!ok) return;
 
     const { error } = await supabase
       .from("episodes")
-      .update({
-        deleted: true,
-      })
+      .update({ deleted: true })
       .in("id", deleteTargets);
 
     if (error) {
@@ -245,7 +360,6 @@ export default function WebtoonDetailPage() {
     await touchWebtoon();
 
     alert("삭제 완료!");
-
     cancelEpisodeModes();
     getEpisodes();
   }
@@ -260,34 +374,148 @@ export default function WebtoonDetailPage() {
 
   return (
     <main className="min-h-screen bg-black text-white px-4 md:px-8 py-6 md:py-8">
-      <div className="mb-8 flex items-center justify-between">
-        <Link
-          href="/library"
-          className="border border-white px-4 py-2 rounded-full hover:bg-white hover:text-black transition"
-        >
+      <div className="mb-8 flex items-center justify-between gap-3">
+        <Link href="/library" className={topButtonClass}>
           ← LIBRARY
         </Link>
+
+        {!infoEditMode ? (
+          <button onClick={openInfoEdit} className={topButtonClass}>
+            작품 정보 수정
+          </button>
+        ) : (
+          <div className="flex items-center gap-2 flex-wrap justify-end">
+            <button
+              onClick={() => {
+                setMainImageEditMode(!mainImageEditMode);
+                setTextCoverEditMode(false);
+              }}
+              className={mainImageEditMode ? activeTopButtonClass : topButtonClass}
+            >
+              사진 수정
+            </button>
+
+            <button
+              onClick={() => {
+                setTextCoverEditMode(!textCoverEditMode);
+                setMainImageEditMode(false);
+              }}
+              className={textCoverEditMode ? activeTopButtonClass : topButtonClass}
+            >
+              제목 및 썸네일 수정
+            </button>
+
+            {hasInfoChanges && (
+              <button onClick={completeInfoEdit} className={activeTopButtonClass}>
+                완료
+              </button>
+            )}
+
+            <button onClick={cancelInfoEdit} className={topButtonClass}>
+              취소
+            </button>
+
+            <button onClick={moveToTrash} className={topDeleteButtonClass}>
+              삭제
+            </button>
+          </div>
+        )}
       </div>
 
       <section className="flex flex-col md:flex-row gap-6 md:gap-10 mb-12">
         <div className="w-full md:w-1/3 aspect-[2/1] overflow-hidden rounded-3xl border border-white/10">
           <img
-            src={webtoon.main_image_url || webtoon.cover_url}
+            src={mainImageInput || webtoon.main_image_url || webtoon.cover_url}
             alt=""
             className="w-full h-full object-cover"
           />
         </div>
 
         <div className="flex-1">
-          <h1 className="text-3xl md:text-5xl font-bold mb-4">
-            {webtoon.title}
-          </h1>
+          {textCoverEditMode ? (
+            <div className="flex flex-col gap-3">
+              <input
+                value={titleInput}
+                onChange={(e) => setTitleInput(e.target.value)}
+                className="bg-black border border-white/25 rounded-2xl px-4 py-3 text-white outline-none text-2xl md:text-4xl font-bold"
+                placeholder="작품 제목"
+              />
 
-          <p className="text-white/70 leading-relaxed whitespace-pre-wrap">
-            {webtoon.description || "설명이 없는 작품"}
-          </p>
+              <textarea
+                value={descriptionInput}
+                onChange={(e) => setDescriptionInput(e.target.value)}
+                className="bg-black border border-white/25 rounded-2xl px-4 py-3 text-white outline-none min-h-[110px] resize-y"
+                placeholder="작품 설명"
+              />
+
+              {coverInput && (
+                <div>
+                  <p className="text-white/50 text-sm mb-2">선택한 썸네일</p>
+                  <img
+                    src={coverInput}
+                    alt=""
+                    className="w-[110px] h-[110px] object-cover rounded-xl border border-white/20"
+                  />
+                </div>
+              )}
+            </div>
+          ) : (
+            <>
+              <h1 className="text-3xl md:text-5xl font-bold mb-4">
+                {titleInput || webtoon.title}
+              </h1>
+
+              <p className="text-white/70 leading-relaxed whitespace-pre-wrap">
+                {descriptionInput || webtoon.description || "설명이 없는 작품"}
+              </p>
+            </>
+          )}
         </div>
       </section>
+
+      {infoEditMode && mainImageEditMode && (
+        <section className="mb-10">
+          <h2 className="text-xl font-bold mb-4">메인사진 선택</h2>
+
+          <div className="grid grid-cols-3 md:grid-cols-8 gap-3">
+            {images.map((image) => (
+              <button
+                key={image.id}
+                onClick={() => setMainImageInput(image.url)}
+                className={`relative aspect-square overflow-hidden rounded-xl border ${
+                  mainImageInput === image.url
+                    ? "border-red-500 border-2"
+                    : "border-white/15"
+                }`}
+              >
+                <img src={image.url} alt="" className="w-full h-full object-cover" />
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {infoEditMode && textCoverEditMode && (
+        <section className="mb-10">
+          <h2 className="text-xl font-bold mb-4">썸네일 선택</h2>
+
+          <div className="grid grid-cols-3 md:grid-cols-8 gap-3">
+            {images.map((image) => (
+              <button
+                key={image.id}
+                onClick={() => setCoverInput(image.url)}
+                className={`relative aspect-square overflow-hidden rounded-xl border ${
+                  coverInput === image.url
+                    ? "border-red-500 border-2"
+                    : "border-white/15"
+                }`}
+              >
+                <img src={image.url} alt="" className="w-full h-full object-cover" />
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section>
         <div className="flex items-center justify-between gap-4 mb-6 flex-wrap">
@@ -295,55 +523,39 @@ export default function WebtoonDetailPage() {
 
           <div className="flex items-center gap-2 flex-wrap justify-end">
             {!episodeEditMode && (
-              <button
-                onClick={startEpisodeEditMode}
-                className={buttonClass}
-              >
+              <button onClick={startEpisodeEditMode} className={episodeButtonClass}>
                 에피소드 수정
               </button>
             )}
 
             {episodeEditMode && (
               <>
-                <Link href="/upload" className={buttonClass}>
+                <Link href="/upload" className={episodeButtonClass}>
                   에피소드 추가
                 </Link>
 
                 <button
-                  onClick={() =>
-                    setEpisodeDeleteMode(!episodeDeleteMode)
-                  }
+                  onClick={() => setEpisodeDeleteMode(!episodeDeleteMode)}
                   className={
-                    episodeDeleteMode
-                      ? deleteActiveClass
-                      : deleteButtonClass
+                    episodeDeleteMode ? episodeDeleteActiveButtonClass : episodeDeleteButtonClass
                   }
                 >
                   에피소드 삭제
                 </button>
 
                 {hasEpisodeChanges && (
-                  <button
-                    onClick={completeEpisodeEdit}
-                    className={activeButtonClass}
-                  >
+                  <button onClick={completeEpisodeEdit} className={episodeActiveButtonClass}>
                     완료
                   </button>
                 )}
 
                 {episodeDeleteMode && deleteTargets.length > 0 && (
-                  <button
-                    onClick={completeEpisodeDelete}
-                    className={deleteActiveClass}
-                  >
+                  <button onClick={completeEpisodeDelete} className={episodeDeleteActiveButtonClass}>
                     삭제 완료
                   </button>
                 )}
 
-                <button
-                  onClick={cancelEpisodeModes}
-                  className={buttonClass}
-                >
+                <button onClick={cancelEpisodeModes} className={episodeButtonClass}>
                   취소
                 </button>
               </>
@@ -388,10 +600,7 @@ export default function WebtoonDetailPage() {
                     <input
                       value={edited.title}
                       onChange={(e) =>
-                        updateEditedEpisodeTitle(
-                          episode.id,
-                          e.target.value
-                        )
+                        updateEditedEpisodeTitle(episode.id, e.target.value)
                       }
                       className="flex-1 bg-black border border-white/20 rounded-xl px-4 py-3 outline-none text-white font-bold"
                     />
@@ -402,19 +611,14 @@ export default function WebtoonDetailPage() {
                       step="1"
                       value={edited.episode_no}
                       onChange={(e) =>
-                        updateEditedEpisodeNo(
-                          episode.id,
-                          e.target.value
-                        )
+                        updateEditedEpisodeNo(episode.id, e.target.value)
                       }
                       className="w-[90px] bg-black border border-white/20 rounded-xl px-3 py-3 outline-none text-center text-white"
                     />
 
                     {episodeDeleteMode && (
                       <button
-                        onClick={() =>
-                          toggleDeleteTarget(episode.id)
-                        }
+                        onClick={() => toggleDeleteTarget(episode.id)}
                         className={`px-4 py-3 rounded-xl text-sm transition whitespace-nowrap ${
                           selectedDelete
                             ? "bg-red-500 text-white"
@@ -431,9 +635,7 @@ export default function WebtoonDetailPage() {
           })}
 
           {episodes.length === 0 && (
-            <p className="text-white/40">
-              아직 에피소드가 없어.
-            </p>
+            <p className="text-white/40">아직 에피소드가 없어.</p>
           )}
         </div>
       </section>
@@ -441,14 +643,23 @@ export default function WebtoonDetailPage() {
   );
 }
 
-const buttonClass =
+const topButtonClass =
+  "border border-white/25 px-4 py-2 rounded-full hover:bg-white hover:text-black transition whitespace-nowrap text-sm md:text-base";
+
+const activeTopButtonClass =
+  "border border-white px-4 py-2 rounded-full bg-white text-black transition whitespace-nowrap text-sm md:text-base";
+
+const topDeleteButtonClass =
+  "border border-red-500 text-red-400 px-4 py-2 rounded-full hover:bg-red-500 hover:text-white transition whitespace-nowrap text-sm md:text-base";
+
+const episodeButtonClass =
   "border border-white/20 px-4 py-2 rounded-xl hover:bg-white hover:text-black transition whitespace-nowrap";
 
-const activeButtonClass =
+const episodeActiveButtonClass =
   "border border-white px-4 py-2 rounded-xl bg-white text-black transition whitespace-nowrap";
 
-const deleteButtonClass =
+const episodeDeleteButtonClass =
   "border border-red-500 text-red-400 px-4 py-2 rounded-xl hover:bg-red-500 hover:text-white transition whitespace-nowrap";
 
-const deleteActiveClass =
+const episodeDeleteActiveButtonClass =
   "border border-red-500 bg-red-500 text-white px-4 py-2 rounded-xl transition whitespace-nowrap";
