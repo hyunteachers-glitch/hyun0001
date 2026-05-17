@@ -40,6 +40,7 @@ export default function LibraryPage() {
 
     checkMobile();
     window.addEventListener("resize", checkMobile);
+
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
@@ -127,7 +128,10 @@ export default function LibraryPage() {
     const episodeIds = episodes?.map((episode) => episode.id) || [];
 
     if (episodeIds.length > 0) {
-      await supabase.from("episode_images").delete().in("episode_id", episodeIds);
+      await supabase
+        .from("episode_images")
+        .delete()
+        .in("episode_id", episodeIds);
     }
 
     await supabase.from("episodes").delete().eq("webtoon_id", id);
@@ -198,15 +202,17 @@ export default function LibraryPage() {
     const count = episodeCounts[toonId] || 0;
 
     return (
-      <p
+      <div
         style={{
-          fontSize: isMobile ? "10px" : "13px",
+          position: "absolute",
+          right: isMobile ? "6px" : "9px",
+          bottom: isMobile ? "6px" : "9px",
+          fontSize: isMobile ? "10px" : "12px",
           color: "rgba(255,255,255,0.55)",
-          marginTop: "5px",
         }}
       >
         {count > 0 ? `에피소드 ${count}` : "에피소드 없음"}
-      </p>
+      </div>
     );
   }
 
@@ -244,6 +250,7 @@ export default function LibraryPage() {
           marginTop: "8px",
           lineHeight: "1.35",
           wordBreak: "keep-all",
+          paddingRight: isMobile ? "0px" : "4px",
         }}
       >
         {title}
@@ -255,8 +262,10 @@ export default function LibraryPage() {
     const cardInner = (
       <div
         style={{
+          position: "relative",
           width: cardWidth,
           height: trash ? "auto" : cardHeight,
+          minHeight: cardHeight,
           borderRadius: "14px",
           overflow: "hidden",
           border: trash
@@ -271,29 +280,37 @@ export default function LibraryPage() {
         <div
           style={{
             padding: isMobile ? "6px" : "9px",
+            paddingBottom: isMobile ? "22px" : "28px",
           }}
         >
           <Title title={toon.title} />
-          <EpisodeLabel toonId={toon.id} />
-
-          {trash && (
-            <div className="mt-2 flex flex-col gap-1">
-              <button
-                onClick={() => restoreWebtoon(toon.id)}
-                className="border border-white/30 text-white text-[10px] md:text-xs py-1 rounded-lg hover:bg-white hover:text-black transition"
-              >
-                복구
-              </button>
-
-              <button
-                onClick={() => permanentDeleteWebtoon(toon.id)}
-                className="border border-red-500 text-red-400 text-[10px] md:text-xs py-1 rounded-lg hover:bg-red-500 hover:text-white transition"
-              >
-                영구삭제
-              </button>
-            </div>
-          )}
         </div>
+
+        <EpisodeLabel toonId={toon.id} />
+
+        {trash && (
+          <div
+            style={{
+              padding: isMobile ? "6px" : "9px",
+              paddingTop: 0,
+            }}
+            className="flex flex-col gap-1"
+          >
+            <button
+              onClick={() => restoreWebtoon(toon.id)}
+              className="border border-white/30 text-white text-[10px] md:text-xs py-1 rounded-lg hover:bg-white hover:text-black transition"
+            >
+              복구
+            </button>
+
+            <button
+              onClick={() => permanentDeleteWebtoon(toon.id)}
+              className="border border-red-500 text-red-400 text-[10px] md:text-xs py-1 rounded-lg hover:bg-red-500 hover:text-white transition"
+            >
+              영구삭제
+            </button>
+          </div>
+        )}
       </div>
     );
 
