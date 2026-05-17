@@ -568,9 +568,10 @@ export default function WebtoonDetailPage() {
         </div>
 
         <div className="flex flex-col gap-4">
-          {episodes.map((episode) => {
+          {episodes.map((episode, index) => {
             const edited = editedEpisodes[episode.id];
             const selectedDelete = deleteTargets.includes(episode.id);
+            const displayEpisodeNo = index + 1;
 
             return (
               <div
@@ -589,7 +590,7 @@ export default function WebtoonDetailPage() {
                       </div>
 
                       <div className="text-white/50 text-sm whitespace-nowrap">
-                        {episode.episode_no}화
+                        {displayEpisodeNo}화
                       </div>
                     </div>
                   </Link>
