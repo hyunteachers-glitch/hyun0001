@@ -146,9 +146,7 @@ export default function UploadPage() {
         continue;
       }
 
-      const publicUrl = supabase.storage.from("webtoon").getPublicUrl(filePath)
-        .data.publicUrl;
-
+      const publicUrl = supabase.storage.from("webtoon").getPublicUrl(filePath).data.publicUrl;
       await supabase.from("images").insert([{ url: publicUrl }]);
     }
 
@@ -161,7 +159,6 @@ export default function UploadPage() {
     const endIndex = images.findIndex((image) => image.id === endId);
 
     if (startIndex === -1 || endIndex === -1) return [];
-
     if (startIndex <= endIndex) return images.slice(startIndex, endIndex + 1);
 
     return images.slice(endIndex, startIndex + 1).reverse();
@@ -364,9 +361,7 @@ export default function UploadPage() {
       image_order: index,
     }));
 
-    const { error: imageError } = await supabase
-      .from("episode_images")
-      .insert(imageRows);
+    const { error: imageError } = await supabase.from("episode_images").insert(imageRows);
 
     if (imageError) {
       alert(imageError.message);
@@ -393,9 +388,7 @@ export default function UploadPage() {
     const ok = confirm(`${deleteTargets.length}개의 사진을 삭제할까?`);
     if (!ok) return;
 
-    const targetImages = images.filter((image) =>
-      deleteTargets.includes(image.id)
-    );
+    const targetImages = images.filter((image) => deleteTargets.includes(image.id));
 
     for (const image of targetImages) {
       const filePath = image.url.split("/webtoon/")[1];
@@ -424,9 +417,7 @@ export default function UploadPage() {
       <main className="min-h-screen bg-black text-white px-4 md:px-8 py-8">
         <div className="mb-6 flex items-center justify-between gap-3 flex-wrap">
           <div>
-            <h1 className="text-3xl md:text-5xl font-bold">
-              에피소드 미리보기
-            </h1>
+            <h1 className="text-3xl md:text-5xl font-bold">에피소드 미리보기</h1>
             <p className="text-white/50 mt-2">
               번호를 눌러 순서를 바꾸고, 필요 없는 사진은 제거해줘.
             </p>
@@ -461,7 +452,7 @@ export default function UploadPage() {
             <div
               id={`preview-image-${index}`}
               key={`${url}-${index}`}
-              className="w-full md:w-[50vw] border border-white/15 rounded-2xl overflow-hidden bg-white/[0.03]"
+              className="w-full md:w-[75vw] border border-white/15 rounded-2xl overflow-hidden bg-white/[0.03]"
             >
               <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 gap-3">
                 {editingOrderIndex === index ? (
