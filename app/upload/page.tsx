@@ -33,6 +33,7 @@ export default function UploadPage() {
   const [description, setDescription] = useState("");
   const [coverUrl, setCoverUrl] = useState("");
   const [mainImageUrl, setMainImageUrl] = useState("");
+
   const [selectMode, setSelectMode] = useState<"none" | "thumbnail" | "main">(
     "none"
   );
@@ -44,15 +45,19 @@ export default function UploadPage() {
 
   const [selectedImages, setSelectedImages] = useState<string[]>([]);
   const [deleteTargets, setDeleteTargets] = useState<number[]>([]);
+
   const [rangeMode, setRangeMode] = useState(false);
   const [rangeStartId, setRangeStartId] = useState<number | null>(null);
 
   const [episodePreviewMode, setEpisodePreviewMode] = useState(false);
-  const [episodePreviewImages, setEpisodePreviewImages] = useState<string[]>([]);
-  const [expandedPreviewUrl, setExpandedPreviewUrl] = useState<string | null>(
+  const [episodePreviewImages, setEpisodePreviewImages] = useState<string[]>(
+    []
+  );
+
+  const [editingOrderIndex, setEditingOrderIndex] = useState<number | null>(
     null
   );
-  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [orderInput, setOrderInput] = useState("");
 
   useEffect(() => {
     getImages(true);
@@ -77,8 +82,8 @@ export default function UploadPage() {
     setRangeStartId(null);
     setEpisodePreviewMode(false);
     setEpisodePreviewImages([]);
-    setExpandedPreviewUrl(null);
-    setDragIndex(null);
+    setEditingOrderIndex(null);
+    setOrderInput("");
   }
 
   function resetDelete() {
@@ -244,21 +249,43 @@ export default function UploadPage() {
     }
   }
 
-  function movePreviewImage(fromIndex: number, toIndex: number) {
-    if (fromIndex === toIndex) return;
+  function startOrderEdit(index: number) {
+    setEditingOrderIndex(index);
+    setOrderInput(String(index + 1));
+  }
+
+  function applyOrderEdit(index: number) {
+    const targetNumber = Number(orderInput);
+    const total = episodePreviewImages.length;
+
+    if (!Number.isInteger(targetNumber) || targetNumber < 1 || targetNumber > total) {
+      alert(`1부터 ${total} 사이의 숫자를 입력해줘.`);
+      return;
+    }
+
+    const targetIndex = targetNumber - 1;
 
     setEpisodePreviewImages((prev) => {
       const next = [...prev];
-      const [moved] = next.splice(fromIndex, 1);
-      next.splice(toIndex, 0, moved);
+      const [moved] = next.splice(index, 1);
+      next.splice(targetIndex, 0, moved);
       return next;
     });
 
-    setDragIndex(toIndex);
+    setEditingOrderIndex(null);
+    setOrderInput("");
+
+    setTimeout(() => {
+      document
+        .getElementById(`preview-image-${targetIndex}`)
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 50);
   }
 
   function removePreviewImage(index: number) {
     setEpisodePreviewImages((prev) => prev.filter((_, i) => i !== index));
+    setEditingOrderIndex(null);
+    setOrderInput("");
   }
 
   async function createWork() {
@@ -312,8 +339,8 @@ export default function UploadPage() {
 
     setEpisodePreviewImages([...selectedImages]);
     setEpisodePreviewMode(true);
-    setExpandedPreviewUrl(null);
-    setDragIndex(null);
+    setEditingOrderIndex(null);
+    setOrderInput("");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -417,9 +444,11 @@ export default function UploadPage() {
       <main className="min-h-screen bg-black text-white px-4 md:px-8 py-8">
         <div className="mb-6 flex items-center justify-between gap-3 flex-wrap">
           <div>
-            <h1 className="text-3xl md:text-5xl font-bold">에피소드 미리보기</h1>
+            <h1 className="text-3xl md:text-5xl font-bold">
+              에피소드 미리보기
+            </h1>
             <p className="text-white/50 mt-2">
-              드래그로 순서를 바꾸고, 필요 없는 사진은 제거해줘.
+              번호를 눌러 순서를 바꾸고, 필요 없는 사진은 제거해줘.
             </p>
           </div>
 
@@ -427,8 +456,8 @@ export default function UploadPage() {
             <button
               onClick={() => {
                 setEpisodePreviewMode(false);
-                setExpandedPreviewUrl(null);
-                setDragIndex(null);
+                setEditingOrderIndex(null);
+                setOrderInput("");
               }}
               className={buttonClass}
             >
@@ -447,63 +476,60 @@ export default function UploadPage() {
           </p>
         </div>
 
-        <div className="flex flex-col gap-4 max-w-[560px] mx-auto">
+        <div className="flex flex-col gap-5 items-center">
           {episodePreviewImages.map((url, index) => (
             <div
+              id={`preview-image-${index}`}
               key={`${url}-${index}`}
-              draggable
-              onDragStart={() => setDragIndex(index)}
-              onDragEnter={() => {
-                if (dragIndex !== null) movePreviewImage(dragIndex, index);
-              }}
-              onDragOver={(e) => e.preventDefault()}
-              onDragEnd={() => setDragIndex(null)}
-              onPointerDown={() => setDragIndex(index)}
-              onPointerEnter={() => {
-                if (dragIndex !== null) movePreviewImage(dragIndex, index);
-              }}
-              onPointerUp={() => setDragIndex(null)}
-              className="border border-white/15 rounded-2xl overflow-hidden bg-white/[0.03]"
+              className="w-full md:w-[50vw] border border-white/15 rounded-2xl overflow-hidden bg-white/[0.03]"
             >
-              <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
-                <span className="font-bold">{index + 1}</span>
+              <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 gap-3">
+                {editingOrderIndex === index ? (
+                  <div className="flex items-center gap-2">
+                    <input
+                      value={orderInput}
+                      onChange={(e) => setOrderInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") applyOrderEdit(index);
+                        if (e.key === "Escape") {
+                          setEditingOrderIndex(null);
+                          setOrderInput("");
+                        }
+                      }}
+                      className="w-[76px] bg-black border border-white/25 rounded-xl px-3 py-2 text-center outline-none"
+                      autoFocus
+                    />
+
+                    <button
+                      onClick={() => applyOrderEdit(index)}
+                      className="border border-white/30 px-3 py-2 rounded-xl text-sm hover:bg-white hover:text-black transition"
+                    >
+                      이동
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => startOrderEdit(index)}
+                    className="font-bold border border-white/20 px-4 py-2 rounded-xl hover:bg-white hover:text-black transition"
+                  >
+                    {index + 1}
+                  </button>
+                )}
 
                 <button
                   onClick={() => removePreviewImage(index)}
-                  className="border border-red-500 text-red-400 px-3 py-1 rounded-xl text-sm hover:bg-red-500 hover:text-white transition"
+                  className="border border-red-500 text-red-400 px-3 py-2 rounded-xl text-sm hover:bg-red-500 hover:text-white transition"
                 >
                   제거
                 </button>
               </div>
 
-              <button
-                onClick={() =>
-                  setExpandedPreviewUrl(expandedPreviewUrl === url ? null : url)
-                }
-                className="w-full block"
-              >
-                <div className="w-full aspect-square overflow-hidden bg-black">
-                  <img
-                    src={url}
-                    alt=""
-                    loading="lazy"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-              </button>
-
-              {expandedPreviewUrl === url && (
-                <button
-                  onClick={() => setExpandedPreviewUrl(null)}
-                  className="w-full bg-black border-t border-white/10"
-                >
-                  <img
-                    src={url}
-                    alt=""
-                    className="w-full h-auto object-contain"
-                  />
-                </button>
-              )}
+              <img
+                src={url}
+                alt=""
+                loading="lazy"
+                className="w-full h-auto object-contain"
+              />
             </div>
           ))}
         </div>
