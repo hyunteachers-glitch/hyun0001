@@ -33,7 +33,6 @@ export default function UploadPage() {
   const [description, setDescription] = useState("");
   const [coverUrl, setCoverUrl] = useState("");
   const [mainImageUrl, setMainImageUrl] = useState("");
-
   const [selectMode, setSelectMode] = useState<"none" | "thumbnail" | "main">(
     "none"
   );
@@ -45,9 +44,15 @@ export default function UploadPage() {
 
   const [selectedImages, setSelectedImages] = useState<string[]>([]);
   const [deleteTargets, setDeleteTargets] = useState<number[]>([]);
-
   const [rangeMode, setRangeMode] = useState(false);
   const [rangeStartId, setRangeStartId] = useState<number | null>(null);
+
+  const [episodePreviewMode, setEpisodePreviewMode] = useState(false);
+  const [episodePreviewImages, setEpisodePreviewImages] = useState<string[]>([]);
+  const [expandedPreviewUrl, setExpandedPreviewUrl] = useState<string | null>(
+    null
+  );
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
 
   useEffect(() => {
     getImages(true);
@@ -70,6 +75,10 @@ export default function UploadPage() {
     setSelectedImages([]);
     setRangeMode(false);
     setRangeStartId(null);
+    setEpisodePreviewMode(false);
+    setEpisodePreviewImages([]);
+    setExpandedPreviewUrl(null);
+    setDragIndex(null);
   }
 
   function resetDelete() {
@@ -235,6 +244,23 @@ export default function UploadPage() {
     }
   }
 
+  function movePreviewImage(fromIndex: number, toIndex: number) {
+    if (fromIndex === toIndex) return;
+
+    setEpisodePreviewImages((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, moved);
+      return next;
+    });
+
+    setDragIndex(toIndex);
+  }
+
+  function removePreviewImage(index: number) {
+    setEpisodePreviewImages((prev) => prev.filter((_, i) => i !== index));
+  }
+
   async function createWork() {
     const cleanTitle = title.trim();
 
@@ -279,10 +305,22 @@ export default function UploadPage() {
     getWebtoons();
   }
 
-  async function createEpisode() {
+  function openEpisodePreview() {
     if (!selectedWebtoonId) return alert("작품을 선택해줘.");
     if (!episodeTitle.trim()) return alert("에피소드 제목을 입력해줘.");
     if (selectedImages.length === 0) return alert("이미지를 선택해줘.");
+
+    setEpisodePreviewImages([...selectedImages]);
+    setEpisodePreviewMode(true);
+    setExpandedPreviewUrl(null);
+    setDragIndex(null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  async function finalCreateEpisode() {
+    if (!selectedWebtoonId) return alert("작품을 선택해줘.");
+    if (!episodeTitle.trim()) return alert("에피소드 제목을 입력해줘.");
+    if (episodePreviewImages.length === 0) return alert("사진이 없어.");
 
     const { data: existingEpisodes } = await supabase
       .from("episodes")
@@ -301,7 +339,7 @@ export default function UploadPage() {
           webtoon_id: Number(selectedWebtoonId),
           title: episodeTitle.trim(),
           episode_no: nextEpisodeNo,
-          cover_url: selectedImages[0],
+          cover_url: episodePreviewImages[0],
           deleted: false,
         },
       ])
@@ -313,7 +351,7 @@ export default function UploadPage() {
       return;
     }
 
-    const imageRows = selectedImages.map((url, index) => ({
+    const imageRows = episodePreviewImages.map((url, index) => ({
       episode_id: episodeData.id,
       image_url: url,
       image_order: index,
@@ -373,6 +411,105 @@ export default function UploadPage() {
       : webtoons.filter((toon) =>
           toon.title.toLowerCase().includes(webtoonSearch.toLowerCase())
         );
+
+  if (episodePreviewMode) {
+    return (
+      <main className="min-h-screen bg-black text-white px-4 md:px-8 py-8">
+        <div className="mb-6 flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <h1 className="text-3xl md:text-5xl font-bold">에피소드 미리보기</h1>
+            <p className="text-white/50 mt-2">
+              드래그로 순서를 바꾸고, 필요 없는 사진은 제거해줘.
+            </p>
+          </div>
+
+          <div className="flex gap-2 flex-wrap">
+            <button
+              onClick={() => {
+                setEpisodePreviewMode(false);
+                setExpandedPreviewUrl(null);
+                setDragIndex(null);
+              }}
+              className={buttonClass}
+            >
+              취소
+            </button>
+
+            <button onClick={finalCreateEpisode} className={activeButtonClass}>
+              최종 생성
+            </button>
+          </div>
+        </div>
+
+        <div className="mb-6 border border-white/10 rounded-2xl p-4">
+          <p className="text-white/60 text-sm md:text-base">
+            선택된 사진 {episodePreviewImages.length}장
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-4 max-w-[560px] mx-auto">
+          {episodePreviewImages.map((url, index) => (
+            <div
+              key={`${url}-${index}`}
+              draggable
+              onDragStart={() => setDragIndex(index)}
+              onDragEnter={() => {
+                if (dragIndex !== null) movePreviewImage(dragIndex, index);
+              }}
+              onDragOver={(e) => e.preventDefault()}
+              onDragEnd={() => setDragIndex(null)}
+              onPointerDown={() => setDragIndex(index)}
+              onPointerEnter={() => {
+                if (dragIndex !== null) movePreviewImage(dragIndex, index);
+              }}
+              onPointerUp={() => setDragIndex(null)}
+              className="border border-white/15 rounded-2xl overflow-hidden bg-white/[0.03]"
+            >
+              <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
+                <span className="font-bold">{index + 1}</span>
+
+                <button
+                  onClick={() => removePreviewImage(index)}
+                  className="border border-red-500 text-red-400 px-3 py-1 rounded-xl text-sm hover:bg-red-500 hover:text-white transition"
+                >
+                  제거
+                </button>
+              </div>
+
+              <button
+                onClick={() =>
+                  setExpandedPreviewUrl(expandedPreviewUrl === url ? null : url)
+                }
+                className="w-full block"
+              >
+                <div className="w-full aspect-square overflow-hidden bg-black">
+                  <img
+                    src={url}
+                    alt=""
+                    loading="lazy"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              </button>
+
+              {expandedPreviewUrl === url && (
+                <button
+                  onClick={() => setExpandedPreviewUrl(null)}
+                  className="w-full bg-black border-t border-white/10"
+                >
+                  <img
+                    src={url}
+                    alt=""
+                    className="w-full h-auto object-contain"
+                  />
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-black text-white px-4 md:px-8 py-8">
@@ -556,7 +693,7 @@ export default function UploadPage() {
           />
 
           <div className="flex gap-3 flex-wrap">
-            <button onClick={createEpisode} className={buttonClass}>
+            <button onClick={openEpisodePreview} className={buttonClass}>
               에피소드 만들기
             </button>
 
