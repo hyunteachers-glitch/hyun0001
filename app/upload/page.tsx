@@ -258,7 +258,11 @@ export default function UploadPage() {
     const targetNumber = Number(orderInput);
     const total = episodePreviewImages.length;
 
-    if (!Number.isInteger(targetNumber) || targetNumber < 1 || targetNumber > total) {
+    if (
+      !Number.isInteger(targetNumber) ||
+      targetNumber < 1 ||
+      targetNumber > total
+    ) {
       alert(`1부터 ${total} 사이의 숫자를 입력해줘.`);
       return;
     }
@@ -447,6 +451,7 @@ export default function UploadPage() {
             <h1 className="text-3xl md:text-5xl font-bold">
               에피소드 미리보기
             </h1>
+
             <p className="text-white/50 mt-2">
               번호를 눌러 순서를 바꾸고, 필요 없는 사진은 제거해줘.
             </p>
@@ -464,7 +469,10 @@ export default function UploadPage() {
               취소
             </button>
 
-            <button onClick={finalCreateEpisode} className={activeButtonClass}>
+            <button
+              onClick={finalCreateEpisode}
+              className={activeButtonClass}
+            >
               최종 생성
             </button>
           </div>
@@ -481,7 +489,7 @@ export default function UploadPage() {
             <div
               id={`preview-image-${index}`}
               key={`${url}-${index}`}
-              className="w-full md:w-[50vw] border border-white/15 rounded-2xl overflow-hidden bg-white/[0.03]"
+              className="w-full md:w-[75vw] border border-white/15 rounded-2xl overflow-hidden bg-white/[0.03]"
             >
               <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 gap-3">
                 {editingOrderIndex === index ? (
@@ -491,6 +499,7 @@ export default function UploadPage() {
                       onChange={(e) => setOrderInput(e.target.value)}
                       onKeyDown={(e) => {
                         if (e.key === "Enter") applyOrderEdit(index);
+
                         if (e.key === "Escape") {
                           setEditingOrderIndex(null);
                           setOrderInput("");
@@ -537,315 +546,7 @@ export default function UploadPage() {
     );
   }
 
-  return (
-    <main className="min-h-screen bg-black text-white px-4 md:px-8 py-8">
-      <div className="flex flex-col gap-6 mb-8">
-        <div className="flex gap-3 flex-wrap">
-          <Link href="/library" className={buttonClass}>
-            LIBRARY
-          </Link>
-
-          <label className={buttonClass}>
-            갤러리 추가
-            <input
-              type="file"
-              multiple
-              onChange={handleUpload}
-              className="hidden"
-            />
-          </label>
-
-          <button
-            onClick={() => {
-              if (mode === "work") {
-                resetWork();
-                setMode("gallery");
-              } else {
-                resetWork();
-                setMode("work");
-              }
-            }}
-            className={mode === "work" ? activeButtonClass : buttonClass}
-          >
-            작품 생성
-          </button>
-
-          <button
-            onClick={() => {
-              if (mode === "episode") {
-                resetEpisode();
-                setMode("gallery");
-              } else {
-                resetEpisode();
-                setMode("episode");
-              }
-            }}
-            className={mode === "episode" ? activeButtonClass : buttonClass}
-          >
-            에피소드 생성
-          </button>
-
-          <button
-            onClick={() => {
-              if (mode === "delete") {
-                completeDelete();
-              } else {
-                resetDelete();
-                setMode("delete");
-              }
-            }}
-            className={mode === "delete" ? deleteActiveClass : deleteButtonClass}
-          >
-            {mode === "delete" ? "삭제 완료" : "삭제"}
-          </button>
-        </div>
-      </div>
-
-      {uploading && <p className="mb-6 text-white/60">업로드 중...</p>}
-
-      {mode === "work" && (
-        <div className="mb-8 max-w-[900px] flex flex-col gap-3">
-          <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="작품 제목"
-            className={inputClass}
-          />
-
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="작품 설명"
-            className={`${inputClass} min-h-[100px] resize-y`}
-          />
-
-          <div className="flex gap-3 flex-wrap">
-            <button
-              onClick={() => setSelectMode("thumbnail")}
-              className={
-                selectMode === "thumbnail" ? activeButtonClass : buttonClass
-              }
-            >
-              썸네일 선택
-            </button>
-
-            <button
-              onClick={() => setSelectMode("main")}
-              className={selectMode === "main" ? activeButtonClass : buttonClass}
-            >
-              메인사진 선택
-            </button>
-          </div>
-
-          <div className="flex gap-6 flex-wrap">
-            {coverUrl && (
-              <div>
-                <p className="mb-2 text-white/60">썸네일</p>
-                <img
-                  src={coverUrl}
-                  alt=""
-                  className="w-[120px] h-[120px] object-cover rounded-xl border border-white/20"
-                />
-              </div>
-            )}
-
-            {mainImageUrl && (
-              <div>
-                <p className="mb-2 text-white/60">메인사진</p>
-                <img
-                  src={mainImageUrl}
-                  alt=""
-                  className="w-[240px] h-[120px] object-cover rounded-xl border border-white/20"
-                />
-              </div>
-            )}
-          </div>
-
-          <button onClick={createWork} className={buttonClass}>
-            작품 만들기
-          </button>
-        </div>
-      )}
-
-      {mode === "episode" && (
-        <div className="mb-8 max-w-[720px] flex flex-col gap-3">
-          <div className="relative">
-            <input
-              value={webtoonSearch}
-              onClick={() => setShowWebtoonList((prev) => !prev)}
-              onChange={(e) => {
-                setWebtoonSearch(e.target.value);
-                setSelectedWebtoonId("");
-                setShowWebtoonList(true);
-              }}
-              placeholder="작품 검색"
-              className={inputClass}
-            />
-
-            {showWebtoonList && (
-              <div className="absolute left-0 right-0 top-[100%] mt-2 bg-black border border-white/15 rounded-2xl overflow-hidden max-h-[280px] overflow-y-auto z-50">
-                {filteredWebtoons.length === 0 && (
-                  <div className="px-4 py-3 text-white/40">
-                    검색 결과가 없어.
-                  </div>
-                )}
-
-                {filteredWebtoons.map((toon) => (
-                  <button
-                    key={toon.id}
-                    onClick={() => {
-                      setSelectedWebtoonId(String(toon.id));
-                      setWebtoonSearch(toon.title);
-                      setShowWebtoonList(false);
-                    }}
-                    className={`w-full text-left px-4 py-3 border-b border-white/5 hover:bg-white hover:text-black transition ${
-                      selectedWebtoonId === String(toon.id)
-                        ? "bg-white text-black"
-                        : "bg-black text-white"
-                    }`}
-                  >
-                    {toon.title}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <input
-            value={episodeTitle}
-            onChange={(e) => setEpisodeTitle(e.target.value)}
-            placeholder="에피소드 제목"
-            className={inputClass}
-          />
-
-          <div className="flex gap-3 flex-wrap">
-            <button onClick={openEpisodePreview} className={buttonClass}>
-              에피소드 만들기
-            </button>
-
-            <button
-              onClick={() => {
-                setRangeMode(!rangeMode);
-                setRangeStartId(null);
-              }}
-              className={rangeMode ? activeButtonClass : buttonClass}
-            >
-              {rangeMode ? "범위선택 중" : "범위선택"}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {mode === "delete" && (
-        <div className="mb-8 flex gap-3 flex-wrap">
-          <button
-            onClick={() => {
-              setRangeMode(!rangeMode);
-              setRangeStartId(null);
-            }}
-            className={rangeMode ? activeButtonClass : buttonClass}
-          >
-            {rangeMode ? "범위선택 중" : "범위선택"}
-          </button>
-        </div>
-      )}
-
-      <div className="grid grid-cols-3 md:grid-cols-10 gap-2 md:gap-3">
-        {images.map((item) => {
-          const selected = selectedImages.includes(item.url);
-          const deleteSelected = deleteTargets.includes(item.id);
-          const episodeOrder = selectedImages.indexOf(item.url) + 1;
-          const deleteOrder = deleteTargets.indexOf(item.id) + 1;
-          const isThumbnail = coverUrl === item.url;
-          const isMain = mainImageUrl === item.url;
-          const isRangeStart = rangeStartId === item.id;
-
-          let badgeText = "";
-          if (isThumbnail && isMain) badgeText = "썸네일 · 메인";
-          else if (isThumbnail) badgeText = "썸네일";
-          else if (isMain) badgeText = "메인";
-
-          return (
-            <button
-              key={item.id}
-              onClick={() => handleImageClick(item)}
-              className={`relative aspect-square overflow-hidden rounded-xl border ${
-                selected ||
-                deleteSelected ||
-                isThumbnail ||
-                isMain ||
-                isRangeStart
-                  ? "border-red-500 border-2"
-                  : "border-white/15"
-              }`}
-            >
-              <img
-                src={item.url}
-                alt=""
-                loading="lazy"
-                className="w-full h-full object-cover"
-              />
-
-              {selected && mode === "episode" && (
-                <div className="absolute top-1 right-1 w-7 h-7 bg-red-500 text-white flex items-center justify-center font-bold">
-                  {episodeOrder}
-                </div>
-              )}
-
-              {deleteSelected && mode === "delete" && (
-                <div className="absolute top-1 right-1 w-7 h-7 bg-red-500 text-white flex items-center justify-center font-bold">
-                  {deleteOrder}
-                </div>
-              )}
-
-              {isRangeStart && rangeMode && (
-                <div className="absolute left-1 top-1 bg-white text-black text-[10px] font-bold px-2 py-1 rounded-md">
-                  시작
-                </div>
-              )}
-
-              {badgeText && (
-                <div className="absolute right-1 bottom-1 bg-white text-black text-[10px] font-bold px-2 py-1 rounded-md">
-                  {badgeText}
-                </div>
-              )}
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="mt-10 flex justify-center">
-        {hasMoreImages ? (
-          <button
-            onClick={() => getImages(false)}
-            disabled={loadingMore}
-            className="border border-white/30 px-6 py-3 rounded-full hover:bg-white hover:text-black transition disabled:opacity-40"
-          >
-            {loadingMore ? "불러오는 중..." : "사진 더보기"}
-          </button>
-        ) : (
-          <p className="text-white/35">모든 사진을 불러왔어.</p>
-        )}
-      </div>
-
-      {previewImage && (
-        <div className="fixed inset-0 z-[9999] bg-black/95 flex items-center justify-center p-5">
-          <button
-            onClick={() => setPreviewImage(null)}
-            className="absolute top-5 right-5 border border-white px-5 py-2 rounded-full"
-          >
-            닫기
-          </button>
-
-          <img
-            src={previewImage}
-            alt=""
-            className="max-w-[92vw] max-h-[90vh] object-contain"
-          />
-        </div>
-      )}
-    </main>
-  );
+  return <main />;
 }
 
 const buttonClass =
