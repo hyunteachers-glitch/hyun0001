@@ -452,7 +452,7 @@ export default function UploadPage() {
             <div
               id={`preview-image-${index}`}
               key={`${url}-${index}`}
-              className="w-full md:w-[75vw] border border-white/15 rounded-2xl overflow-hidden bg-white/[0.03]"
+              className="w-full md:w-[50vw] border border-white/15 rounded-2xl overflow-hidden bg-white/[0.03]"
             >
               <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 gap-3">
                 {editingOrderIndex === index ? (
