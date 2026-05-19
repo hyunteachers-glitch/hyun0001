@@ -93,7 +93,7 @@ export default function WebtoonDetailPage() {
       .select("*")
       .eq("webtoon_id", webtoonId)
       .eq("deleted", false)
-      .order("episode_no", { ascending: true })
+      .order("episode_no", { ascending: false })
       .order("id", { ascending: true });
 
     if (error) {
@@ -355,7 +355,7 @@ export default function WebtoonDetailPage() {
       .select("*")
       .eq("webtoon_id", webtoonId)
       .eq("deleted", false)
-      .order("episode_no", { ascending: true })
+      .order("episode_no", { ascending: false })
       .order("id", { ascending: true });
 
     if (error) {
