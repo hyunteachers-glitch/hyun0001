@@ -51,7 +51,14 @@ export default function WebtoonDetailPage() {
 
   const [episodeEditMode, setEpisodeEditMode] = useState(false);
   const [episodeDeleteMode, setEpisodeDeleteMode] = useState(false);
-  const [editedEpisodes, setEditedEpisodes] = useState<Record<number, EditedEpisode>>({});
+  const [episodeSortOrder, setEpisodeSortOrder] = useState<"asc" | "desc">(
+    "asc"
+  );
+
+  const [editedEpisodes, setEditedEpisodes] = useState<
+    Record<number, EditedEpisode>
+  >({});
+
   const [deleteTargets, setDeleteTargets] = useState<number[]>([]);
 
   useEffect(() => {
@@ -60,6 +67,16 @@ export default function WebtoonDetailPage() {
     getEpisodes();
     getImages();
   }, [webtoonId]);
+
+  const sortedEpisodes = useMemo(() => {
+    return [...episodes].sort((a, b) => {
+      if (episodeSortOrder === "asc") {
+        return a.episode_no - b.episode_no;
+      }
+
+      return b.episode_no - a.episode_no;
+    });
+  }, [episodes, episodeSortOrder]);
 
   async function touchWebtoon() {
     await supabase
@@ -93,7 +110,7 @@ export default function WebtoonDetailPage() {
       .select("*")
       .eq("webtoon_id", webtoonId)
       .eq("deleted", false)
-      .order("episode_no", { ascending: false })
+      .order("episode_no", { ascending: true })
       .order("id", { ascending: true });
 
     if (error) {
@@ -224,10 +241,10 @@ export default function WebtoonDetailPage() {
   function startEpisodeEditMode() {
     const initial: Record<number, EditedEpisode> = {};
 
-    episodes.forEach((episode, index) => {
+    episodes.forEach((episode) => {
       initial[episode.id] = {
         title: episode.title || "",
-        episode_no: String(index + 1),
+        episode_no: String(episode.episode_no),
       };
     });
 
@@ -265,13 +282,13 @@ export default function WebtoonDetailPage() {
   }
 
   const hasEpisodeChanges = useMemo(() => {
-    return episodes.some((episode, index) => {
+    return episodes.some((episode) => {
       const edited = editedEpisodes[episode.id];
       if (!edited) return false;
 
       return (
         edited.title !== (episode.title || "") ||
-        edited.episode_no !== String(index + 1)
+        edited.episode_no !== String(episode.episode_no)
       );
     });
   }, [episodes, editedEpisodes]);
@@ -306,8 +323,8 @@ export default function WebtoonDetailPage() {
       const aOriginalIndex = episodes.findIndex((item) => item.id === a.id);
       const bOriginalIndex = episodes.findIndex((item) => item.id === b.id);
 
-      const aChanged = aEdited?.episode_no !== String(aOriginalIndex + 1);
-      const bChanged = bEdited?.episode_no !== String(bOriginalIndex + 1);
+      const aChanged = aEdited?.episode_no !== String(a.episode_no);
+      const bChanged = bEdited?.episode_no !== String(b.episode_no);
 
       if (aTarget !== bTarget) return aTarget - bTarget;
       if (aChanged && !bChanged) return -1;
@@ -355,7 +372,7 @@ export default function WebtoonDetailPage() {
       .select("*")
       .eq("webtoon_id", webtoonId)
       .eq("deleted", false)
-      .order("episode_no", { ascending: false })
+      .order("episode_no", { ascending: true })
       .order("id", { ascending: true });
 
     if (error) {
@@ -431,7 +448,9 @@ export default function WebtoonDetailPage() {
                 setMainImageEditMode(!mainImageEditMode);
                 setTextCoverEditMode(false);
               }}
-              className={mainImageEditMode ? activeTopButtonClass : topButtonClass}
+              className={
+                mainImageEditMode ? activeTopButtonClass : topButtonClass
+              }
             >
               사진 수정
             </button>
@@ -441,7 +460,9 @@ export default function WebtoonDetailPage() {
                 setTextCoverEditMode(!textCoverEditMode);
                 setMainImageEditMode(false);
               }}
-              className={textCoverEditMode ? activeTopButtonClass : topButtonClass}
+              className={
+                textCoverEditMode ? activeTopButtonClass : topButtonClass
+              }
             >
               제목 및 썸네일 수정
             </button>
@@ -564,9 +585,25 @@ export default function WebtoonDetailPage() {
 
           <div className="flex items-center gap-2 flex-wrap justify-end">
             {!episodeEditMode && (
-              <button onClick={startEpisodeEditMode} className={episodeButtonClass}>
-                에피소드 수정
-              </button>
+              <>
+                <button
+                  onClick={startEpisodeEditMode}
+                  className={episodeButtonClass}
+                >
+                  에피소드 수정
+                </button>
+
+                <button
+                  onClick={() =>
+                    setEpisodeSortOrder((prev) =>
+                      prev === "asc" ? "desc" : "asc"
+                    )
+                  }
+                  className={episodeButtonClass}
+                >
+                  {episodeSortOrder === "asc" ? "오름차순" : "내림차순"}
+                </button>
+              </>
             )}
 
             {episodeEditMode && (
@@ -587,13 +624,19 @@ export default function WebtoonDetailPage() {
                 </button>
 
                 {hasEpisodeChanges && (
-                  <button onClick={completeEpisodeEdit} className={episodeActiveButtonClass}>
+                  <button
+                    onClick={completeEpisodeEdit}
+                    className={episodeActiveButtonClass}
+                  >
                     완료
                   </button>
                 )}
 
                 {episodeDeleteMode && deleteTargets.length > 0 && (
-                  <button onClick={completeEpisodeDelete} className={episodeDeleteActiveButtonClass}>
+                  <button
+                    onClick={completeEpisodeDelete}
+                    className={episodeDeleteActiveButtonClass}
+                  >
                     삭제 완료
                   </button>
                 )}
@@ -611,10 +654,9 @@ export default function WebtoonDetailPage() {
         </div>
 
         <div className="flex flex-col gap-4">
-          {episodes.map((episode, index) => {
+          {sortedEpisodes.map((episode) => {
             const edited = editedEpisodes[episode.id];
             const selectedDelete = deleteTargets.includes(episode.id);
-            const displayEpisodeNo = index + 1;
 
             return (
               <div
@@ -633,7 +675,7 @@ export default function WebtoonDetailPage() {
                       </div>
 
                       <div className="text-white/50 text-sm whitespace-nowrap">
-                        {displayEpisodeNo}화
+                        {episode.episode_no}화
                       </div>
                     </div>
                   </Link>
