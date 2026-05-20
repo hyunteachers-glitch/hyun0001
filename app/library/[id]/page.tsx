@@ -41,8 +41,8 @@ export default function WebtoonDetailPage() {
   const [images, setImages] = useState<ImageItem[]>([]);
 
   const [infoEditMode, setInfoEditMode] = useState(false);
-  const [mainImageEditMode, setMainImageEditMode] = useState(false);
-  const [textCoverEditMode, setTextCoverEditMode] = useState(false);
+  const [thumbnailEditMode, setThumbnailEditMode] = useState(false);
+  const [titlePhotoEditMode, setTitlePhotoEditMode] = useState(false);
 
   const [titleInput, setTitleInput] = useState("");
   const [descriptionInput, setDescriptionInput] = useState("");
@@ -52,7 +52,7 @@ export default function WebtoonDetailPage() {
   const [episodeEditMode, setEpisodeEditMode] = useState(false);
   const [episodeDeleteMode, setEpisodeDeleteMode] = useState(false);
   const [episodeSortOrder, setEpisodeSortOrder] = useState<"asc" | "desc">(
-    "asc"
+    "desc"
   );
 
   const [editedEpisodes, setEditedEpisodes] = useState<
@@ -139,8 +139,8 @@ export default function WebtoonDetailPage() {
     if (!webtoon) return;
 
     setInfoEditMode(true);
-    setMainImageEditMode(false);
-    setTextCoverEditMode(false);
+    setThumbnailEditMode(false);
+    setTitlePhotoEditMode(false);
 
     setTitleInput(webtoon.title || "");
     setDescriptionInput(webtoon.description || "");
@@ -152,8 +152,8 @@ export default function WebtoonDetailPage() {
     if (!webtoon) return;
 
     setInfoEditMode(false);
-    setMainImageEditMode(false);
-    setTextCoverEditMode(false);
+    setThumbnailEditMode(false);
+    setTitlePhotoEditMode(false);
 
     setTitleInput(webtoon.title || "");
     setDescriptionInput(webtoon.description || "");
@@ -214,8 +214,8 @@ export default function WebtoonDetailPage() {
 
     alert("작품 정보 수정 완료!");
     setInfoEditMode(false);
-    setMainImageEditMode(false);
-    setTextCoverEditMode(false);
+    setThumbnailEditMode(false);
+    setTitlePhotoEditMode(false);
     getWebtoon();
   }
 
@@ -445,26 +445,26 @@ export default function WebtoonDetailPage() {
           <div className="flex items-center gap-2 flex-wrap justify-end">
             <button
               onClick={() => {
-                setMainImageEditMode(!mainImageEditMode);
-                setTextCoverEditMode(false);
+                setThumbnailEditMode(!thumbnailEditMode);
+                setTitlePhotoEditMode(false);
               }}
               className={
-                mainImageEditMode ? activeTopButtonClass : topButtonClass
+                thumbnailEditMode ? activeTopButtonClass : topButtonClass
               }
             >
-              사진 수정
+              썸네일 수정
             </button>
 
             <button
               onClick={() => {
-                setTextCoverEditMode(!textCoverEditMode);
-                setMainImageEditMode(false);
+                setTitlePhotoEditMode(!titlePhotoEditMode);
+                setThumbnailEditMode(false);
               }}
               className={
-                textCoverEditMode ? activeTopButtonClass : topButtonClass
+                titlePhotoEditMode ? activeTopButtonClass : topButtonClass
               }
             >
-              제목 및 썸네일 수정
+              제목 및 사진 수정
             </button>
 
             {hasInfoChanges && (
@@ -494,7 +494,7 @@ export default function WebtoonDetailPage() {
         </div>
 
         <div className="flex-1">
-          {textCoverEditMode ? (
+          {titlePhotoEditMode ? (
             <div className="flex flex-col gap-3">
               <input
                 value={titleInput}
@@ -510,13 +510,13 @@ export default function WebtoonDetailPage() {
                 placeholder="작품 설명"
               />
 
-              {coverInput && (
+              {mainImageInput && (
                 <div>
-                  <p className="text-white/50 text-sm mb-2">선택한 썸네일</p>
+                  <p className="text-white/50 text-sm mb-2">선택한 메인사진</p>
                   <img
-                    src={coverInput}
+                    src={mainImageInput}
                     alt=""
-                    className="w-[110px] h-[110px] object-cover rounded-xl border border-white/20"
+                    className="w-[220px] h-[110px] object-cover rounded-xl border border-white/20"
                   />
                 </div>
               )}
@@ -535,17 +535,17 @@ export default function WebtoonDetailPage() {
         </div>
       </section>
 
-      {infoEditMode && mainImageEditMode && (
+      {infoEditMode && thumbnailEditMode && (
         <section className="mb-10">
-          <h2 className="text-xl font-bold mb-4">메인사진 선택</h2>
+          <h2 className="text-xl font-bold mb-4">썸네일 선택</h2>
 
           <div className="grid grid-cols-3 md:grid-cols-8 gap-3">
             {images.map((image) => (
               <button
                 key={image.id}
-                onClick={() => setMainImageInput(image.url)}
+                onClick={() => setCoverInput(image.url)}
                 className={`relative aspect-square overflow-hidden rounded-xl border ${
-                  mainImageInput === image.url
+                  coverInput === image.url
                     ? "border-red-500 border-2"
                     : "border-white/15"
                 }`}
@@ -557,17 +557,17 @@ export default function WebtoonDetailPage() {
         </section>
       )}
 
-      {infoEditMode && textCoverEditMode && (
+      {infoEditMode && titlePhotoEditMode && (
         <section className="mb-10">
-          <h2 className="text-xl font-bold mb-4">썸네일 선택</h2>
+          <h2 className="text-xl font-bold mb-4">메인사진 선택</h2>
 
           <div className="grid grid-cols-3 md:grid-cols-8 gap-3">
             {images.map((image) => (
               <button
                 key={image.id}
-                onClick={() => setCoverInput(image.url)}
+                onClick={() => setMainImageInput(image.url)}
                 className={`relative aspect-square overflow-hidden rounded-xl border ${
-                  coverInput === image.url
+                  mainImageInput === image.url
                     ? "border-red-500 border-2"
                     : "border-white/15"
                 }`}
