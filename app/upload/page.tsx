@@ -425,31 +425,53 @@ export default function UploadPage() {
   }
 
   async function completeDelete() {
-    if (deleteTargets.length === 0) {
-      resetDelete();
-      setMode("gallery");
-      return;
+  if (deleteTargets.length === 0) {
+    resetDelete();
+    setMode("gallery");
+    return;
+  }
+
+  const ok = confirm(`${deleteTargets.length}개의 사진을 삭제할까?`);
+  if (!ok) return;
+
+  try {
+    const targetImages = images.filter((image) =>
+      deleteTargets.includes(image.id)
+    );
+
+    const filePaths = targetImages
+      .map((image) => image.url.split("/webtoon/")[1])
+      .filter(Boolean);
+
+    if (filePaths.length > 0) {
+      const { error: storageError } = await supabase.storage
+        .from("webtoon")
+        .remove(filePaths);
+
+      if (storageError) {
+        console.error(storageError);
+      }
     }
 
-    const ok = confirm(`${deleteTargets.length}개의 사진을 삭제할까?`);
-    if (!ok) return;
+    const { error: deleteError } = await supabase
+      .from("images")
+      .delete()
+      .in("id", deleteTargets);
 
-    const targetImages = images.filter((image) => deleteTargets.includes(image.id));
-
-    for (const image of targetImages) {
-      const filePath = image.url.split("/webtoon/")[1];
-
-      if (filePath) {
-        await supabase.storage.from("webtoon").remove([filePath]);
-      }
-
-      await supabase.from("images").delete().eq("id", image.id);
+    if (deleteError) {
+      alert(deleteError.message);
+      return;
     }
 
     resetDelete();
     setMode("gallery");
+
     await getImages(true);
+  } catch (error) {
+    console.error(error);
+    alert("삭제 중 오류가 발생했어.");
   }
+}
 
   const filteredWebtoons =
     webtoonSearch.trim() === ""
