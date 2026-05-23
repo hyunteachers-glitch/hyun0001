@@ -134,24 +134,70 @@ export default function UploadPage() {
 
     setUploading(true);
 
-    for (const file of Array.from(files)) {
-      const filePath = `uploads/${Date.now()}-${file.name}`;
+    try {
+      const fileArray = Array.from(files);
+      const uploadedRows: { order: number; url: string }[] = [];
+      const chunkSize = 5;
 
-      const { error: uploadError } = await supabase.storage
-        .from("webtoon")
-        .upload(filePath, file);
+      for (let i = 0; i < fileArray.length; i += chunkSize) {
+        const chunk = fileArray.slice(i, i + chunkSize);
 
-      if (uploadError) {
-        alert(uploadError.message);
-        continue;
+        const results = await Promise.all(
+          chunk.map(async (file, index) => {
+            const originalOrder = i + index;
+            const safeName = file.name.replace(/\s+/g, "_");
+            const filePath = `uploads/${Date.now()}-${originalOrder}-${safeName}`;
+
+            const { error: uploadError } = await supabase.storage
+              .from("webtoon")
+              .upload(filePath, file);
+
+            if (uploadError) {
+              console.error(uploadError);
+              return null;
+            }
+
+            const publicUrl = supabase.storage
+              .from("webtoon")
+              .getPublicUrl(filePath).data.publicUrl;
+
+            return {
+              order: originalOrder,
+              url: publicUrl,
+            };
+          })
+        );
+
+        const validResults = results.filter(
+          (item): item is { order: number; url: string } => item !== null
+        );
+
+        uploadedRows.push(...validResults);
       }
 
-      const publicUrl = supabase.storage.from("webtoon").getPublicUrl(filePath).data.publicUrl;
-      await supabase.from("images").insert([{ url: publicUrl }]);
+      const orderedRows = uploadedRows
+        .sort((a, b) => a.order - b.order)
+        .map((item) => ({
+          url: item.url,
+        }));
+
+      if (orderedRows.length > 0) {
+        const { error: insertError } = await supabase
+          .from("images")
+          .insert(orderedRows);
+
+        if (insertError) {
+          alert(insertError.message);
+        }
+      }
+
+      await getImages(true);
+    } catch (error) {
+      console.error(error);
+      alert("업로드 중 오류가 발생했어.");
     }
 
     setUploading(false);
-    await getImages(true);
   }
 
   function getRangeItems(startId: number, endId: number) {
