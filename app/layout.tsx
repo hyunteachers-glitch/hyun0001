@@ -30,17 +30,18 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full bg-black text-white">
-        <header className="w-full border-b border-white/10 px-6 py-4">
-          <Link href="/" className="inline-block">
-            <Image
-              src="/logo-horizontal.png"
-              alt="hyun0001"
-              width={260}
-              height={70}
-              priority
-            />
-          </Link>
-        </header>
+        <Link
+          href="/"
+          className="fixed left-8 top-8 z-50 block opacity-90 hover:opacity-100 transition"
+        >
+          <Image
+            src="/logo-horizontal.png"
+            alt="hyun0001"
+            width={190}
+            height={60}
+            priority
+          />
+        </Link>
 
         {children}
       </body>
