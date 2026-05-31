@@ -130,7 +130,13 @@ export default function HomePage() {
       <div className="text-center">
         <p className="text-white/40 mb-4">private webtoon archive</p>
 
-        <h1 className="text-7xl font-bold mb-4">hyun0001</h1>
+        <div className="flex justify-center mb-4">
+  <img
+    src="/logo-horizontal.png"
+    alt="hyun0001"
+    className="w-[420px] max-w-full"
+  />
+</div>
 
         <p className="text-white/60 text-xl">
           나만의 웹툰 장면들을 조용히 보관하는 곳
