@@ -26,6 +26,7 @@ export default function HomePage() {
 
   function checkTodayAccess() {
     const savedDate = localStorage.getItem("hyun0001_access_date");
+
     if (savedDate === todayKey()) {
       setAllowed(true);
     }
@@ -100,7 +101,9 @@ export default function HomePage() {
       <main className="min-h-screen bg-black text-white flex flex-col items-center justify-center gap-8 px-6">
         <div className="text-center">
           <p className="text-white/40 mb-4">private webtoon archive</p>
+
           <h1 className="text-6xl font-bold mb-4">hyun0001</h1>
+
           <p className="text-white/60">비밀번호를 입력해줘</p>
         </div>
 
@@ -127,47 +130,39 @@ export default function HomePage() {
 
   return (
     <main className="min-h-screen bg-black text-white flex flex-col items-center justify-center gap-10 px-6">
-      <div className="text-center">
-        <p className="text-white/40 mb-4">private webtoon archive</p>
-
-        <div className="flex justify-center mb-4">
-  <img
-    src="/logo-horizontal.png"
-    alt="hyun0001"
-    className="w-[420px] max-w-full"
-  />
-</div>
-
-        <p className="text-white/60 text-xl">
-          나만의 웹툰 장면들을 조용히 보관하는 곳
-        </p>
+      <div className="flex justify-center">
+        <img
+          src="/logo-horizontal.png"
+          alt="hyun0001"
+          className="w-[520px] max-w-full"
+        />
       </div>
 
-      <div className="flex flex-col gap-5 w-full max-w-md">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-4xl">
         <Link
           href="/library"
-          className="border border-white rounded-2xl py-5 text-center text-2xl hover:bg-white hover:text-black transition"
+          className="border border-white rounded-2xl py-3 text-center text-2xl hover:bg-white hover:text-black transition"
         >
           LIBRARY
         </Link>
 
         <Link
           href="/upload"
-          className="border border-white rounded-2xl py-5 text-center text-2xl hover:bg-white hover:text-black transition"
+          className="border border-white rounded-2xl py-3 text-center text-2xl hover:bg-white hover:text-black transition"
         >
           UPLOAD
         </Link>
 
         <Link
           href="/login"
-          className="border border-white/40 rounded-2xl py-5 text-center text-2xl hover:bg-white hover:text-black transition"
+          className="border border-white/40 rounded-2xl py-3 text-center text-2xl hover:bg-white hover:text-black transition"
         >
           LOGIN
         </Link>
 
         <button
           onClick={() => setChangeMode(!changeMode)}
-          className="border border-white/40 rounded-2xl py-5 text-center text-2xl hover:bg-white hover:text-black transition"
+          className="border border-white/40 rounded-2xl py-3 text-center text-2xl hover:bg-white hover:text-black transition"
         >
           비밀번호 수정
         </button>
