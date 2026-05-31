@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { supabase } from "../supabase";
 
 type WebtoonItem = {
@@ -348,7 +349,16 @@ export default function LibraryPage() {
     <main className="min-h-screen bg-black text-white px-5 md:px-8 py-10">
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-5xl font-bold mb-3">LIBRARY</h1>
+          <Link href="/">
+  <Image
+    src="/logo-horizontal.png"
+    alt="hyun0001"
+    width={340}
+    height={95}
+    priority
+    className="mb-3"
+  />
+</Link>
           <p className="text-white/50">웹툰 보관 공간</p>
         </div>
 
