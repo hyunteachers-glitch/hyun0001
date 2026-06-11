@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { supabase } from "../supabase";
 import PasswordGuard from "../components/PasswordGuard";
 
@@ -26,6 +27,7 @@ type ImageItem = {
 };
 
 export default function LibraryPage() {
+  const router = useRouter();
   const [webtoons, setWebtoons] = useState<WebtoonItem[]>([]);
   const [trashWebtoons, setTrashWebtoons] = useState<WebtoonItem[]>([]);
   const [images, setImages] = useState<ImageItem[]>([]);
@@ -350,9 +352,16 @@ export default function LibraryPage() {
     if (trash || editMode) return cardInner;
 
     return (
-      <Link href={`/library/${toon.id}`} style={{ textDecoration: "none", color: "white" }}>
-        {cardInner}
-      </Link>
+       <div
+       onClick={() => router.push(`/library/${toon.id}`)}
+       style={{
+        textDecoration: "none",
+        color: "white",
+        cursor: "pointer",
+        }}
+         >
+          {cardInner}
+         </div>
     );
   }
 
