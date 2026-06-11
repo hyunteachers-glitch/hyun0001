@@ -36,6 +36,7 @@ export default function LibraryPage() {
   const [search, setSearch] = useState("");
   const [sortType, setSortType] = useState<"latest" | "abc">("latest");
   const [page, setPage] = useState(1);
+  const [totalWebtoonCount, setTotalWebtoonCount] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
   const [showTrash, setShowTrash] = useState(false);
 
@@ -48,7 +49,6 @@ export default function LibraryPage() {
   const itemsPerPage = isMobile ? 28 : 60;
 
   useEffect(() => {
-    getWebtoons();
     getTrashWebtoons();
     getImages();
 
@@ -62,6 +62,10 @@ export default function LibraryPage() {
   }, []);
 
   useEffect(() => {
+    getWebtoons();
+    }, [page, itemsPerPage, search, sortType]);
+
+  useEffect(() => {
     setPage(1);
   }, [search, sortType, isMobile]);
 
@@ -70,13 +74,30 @@ export default function LibraryPage() {
   }
 
   async function getWebtoons() {
-    const { data, error } = await supabase
-      .from("webtoons")
-      .select("*")
-      .eq("deleted", false);
+    const from = (page - 1) * itemsPerPage;
+    const to = page * itemsPerPage - 1;
 
-    if (error) return alert(error.message);
+    let query = supabase
+    .from("webtoons")
+    .select("*", { count: "exact" })
+    .eq("deleted", false);
+
+     if (search.trim()) {
+      query = query.ilike("title", `%${search.trim()}%`);
+     }
+
+     if (sortType === "abc") {
+      query = query.order("title", { ascending: true });
+     } else {
+      query = query.order("updated_at", { ascending: false });
+     }
+
+     const { data, count, error } = await query.range(from, to);
+
+     if (error) return alert(error.message);
+
     setWebtoons(data || []);
+    setTotalWebtoonCount(count || 0);
   }
 
   async function getTrashWebtoons() {
@@ -212,39 +233,11 @@ export default function LibraryPage() {
     return /^[0-9]/.test(title.trim());
   }
 
-  const filteredWebtoons = useMemo(() => {
-    let result = webtoons.filter((toon) =>
-      toon.title.toLowerCase().includes(search.toLowerCase())
-    );
+  const filteredWebtoons = webtoons;
 
-    if (sortType === "latest") {
-      result = [...result].sort((a, b) => getTime(b) - getTime(a));
-    }
+  const totalPages = Math.max(1, Math.ceil(totalWebtoonCount / itemsPerPage));
 
-    if (sortType === "abc") {
-      result = [...result].sort((a, b) => {
-        const aNumber = startsWithNumber(a.title);
-        const bNumber = startsWithNumber(b.title);
-
-        if (aNumber && !bNumber) return 1;
-        if (!aNumber && bNumber) return -1;
-
-        return a.title.localeCompare(b.title, "ko", {
-          numeric: true,
-          sensitivity: "base",
-        });
-      });
-    }
-
-    return result;
-  }, [webtoons, search, sortType]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredWebtoons.length / itemsPerPage));
-
-  const pagedWebtoons = filteredWebtoons.slice(
-    (page - 1) * itemsPerPage,
-    page * itemsPerPage
-  );
+  const pagedWebtoons = filteredWebtoons;
 
   
 
