@@ -286,8 +286,11 @@ export default function LibraryPage() {
 
     const cardInner = (
       <div
-        onClick={() => {
-          if (editMode && !trash) startEditWebtoon(toon);
+        onClick={(e) => {
+          if (editMode && !trash) {
+            e.preventDefault();
+            startEditWebtoon(toon);
+          }
         }}
         style={{
           position: "relative",
