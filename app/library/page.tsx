@@ -48,7 +48,6 @@ export default function LibraryPage() {
   useEffect(() => {
     getWebtoons();
     getTrashWebtoons();
-    getEpisodeCounts();
     getImages();
 
     function checkMobile() {
@@ -99,11 +98,12 @@ export default function LibraryPage() {
     setImages(data || []);
   }
 
-  async function getEpisodeCounts() {
+  async function getEpisodeCounts(webtoonIds: number[]) {
     const { data, error } = await supabase
       .from("episodes")
       .select("webtoon_id")
-      .eq("deleted", false);
+      .eq("deleted", false)
+      .in("webtoon_id", webtoonIds);
 
     if (error) return alert(error.message);
 
@@ -177,7 +177,6 @@ export default function LibraryPage() {
 
     getWebtoons();
     getTrashWebtoons();
-    getEpisodeCounts();
   }
 
   async function permanentDeleteWebtoon(id: number) {
@@ -201,7 +200,6 @@ export default function LibraryPage() {
 
     getWebtoons();
     getTrashWebtoons();
-    getEpisodeCounts();
   }
 
   function getTime(toon: WebtoonItem) {
@@ -245,6 +243,15 @@ export default function LibraryPage() {
     (page - 1) * itemsPerPage,
     page * itemsPerPage
   );
+
+  useEffect(() => {
+  if (pagedWebtoons.length === 0) {
+    setEpisodeCounts({});
+    return;
+  }
+
+  getEpisodeCounts(pagedWebtoons.map((toon) => toon.id));
+}, [pagedWebtoons]);
 
   const cardWidth = isMobile ? 88 : 190;
   const thumbnailSize = isMobile ? 88 : 190;
