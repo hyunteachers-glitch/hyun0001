@@ -246,14 +246,7 @@ export default function LibraryPage() {
     page * itemsPerPage
   );
 
-  useEffect(() => {
-  if (pagedWebtoons.length === 0) {
-    setEpisodeCounts({});
-    return;
-  }
-
-  getEpisodeCounts(pagedWebtoons.map((toon) => toon.id));
-}, [pagedWebtoons]);
+  
 
   const cardWidth = isMobile ? 88 : 190;
   const thumbnailSize = isMobile ? 88 : 190;
@@ -353,15 +346,17 @@ export default function LibraryPage() {
 
     return (
        <div
-       onClick={() => router.push(`/library/${toon.id}`)}
-       style={{
-        textDecoration: "none",
-        color: "white",
-        cursor: "pointer",
-        }}
-         >
-          {cardInner}
-         </div>
+       onClick={() => {
+         router.push(`/library/${toon.id}`);
+         }}
+         style={{
+          textDecoration: "none",
+          color: "white",
+          cursor: "pointer",
+          }}
+          >
+            {cardInner}
+          </div>
     );
   }
 
