@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { supabase } from "../supabase";
+import PasswordGuard from "../components/PasswordGuard";
 
 type WebtoonItem = {
   id: number;
@@ -346,6 +347,7 @@ export default function LibraryPage() {
   }
 
   return (
+    <PasswordGuard>
     <main className="min-h-screen bg-black text-white px-5 md:px-8 py-10">
       <div className="flex justify-between items-center mb-8">
         <div>
@@ -526,5 +528,6 @@ export default function LibraryPage() {
         )}
       </section>
     </main>
+    </PasswordGuard>
   );
 }

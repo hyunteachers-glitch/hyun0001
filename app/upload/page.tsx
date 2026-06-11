@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "../supabase";
+import PasswordGuard from "../components/PasswordGuard";
 
 type ImageItem = {
   id: number;
@@ -577,6 +578,7 @@ export default function UploadPage() {
   }
 
   return (
+    <PasswordGuard>
     <main className="min-h-screen bg-black text-white px-4 md:px-8 py-8">
       <div className="flex flex-col gap-6 mb-8">
         <div className="flex gap-3 flex-wrap">
@@ -870,6 +872,7 @@ export default function UploadPage() {
         </div>
       )}
     </main>
+    </PasswordGuard>
   );
 }
 

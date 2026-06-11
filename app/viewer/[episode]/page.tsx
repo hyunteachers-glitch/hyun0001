@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "../../supabase";
+import PasswordGuard from "../../components/PasswordGuard";
 
 type Episode = {
   id: number;
@@ -117,6 +118,7 @@ export default function ViewerPage() {
   }
 
   return (
+    <PasswordGuard>
     <main className="min-h-screen bg-black text-white">
       <div
         className={`fixed top-0 left-0 right-0 z-50 bg-black/90 backdrop-blur-md border-b border-white/10 transition-transform duration-300 ${
@@ -205,5 +207,6 @@ export default function ViewerPage() {
         )}
       </div>
     </main>
+    </PasswordGuard>
   );
 }

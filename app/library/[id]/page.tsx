@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "../../supabase";
+import PasswordGuard from "../../components/PasswordGuard";
 
 type Webtoon = {
   id: number;
@@ -431,6 +432,7 @@ export default function WebtoonDetailPage() {
   }
 
   return (
+    <PasswordGuard>
     <main className="min-h-screen bg-black text-white px-4 md:px-8 py-6 md:py-8">
       <div className="mb-8 flex items-center justify-between gap-3">
         <Link href="/library" className={topButtonClass}>
@@ -726,6 +728,7 @@ export default function WebtoonDetailPage() {
         </div>
       </section>
     </main>
+    </PasswordGuard>
   );
 }
 
