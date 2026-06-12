@@ -98,6 +98,20 @@ export default function LibraryPage() {
 
     setWebtoons(data || []);
     setTotalWebtoonCount(count || 0);
+    
+    const ids = (data || []).map((toon) => Number(toon.id));
+
+    console.log("1. 현재 페이지 작품 ids:", ids);
+    console.log(
+       "2. ids 타입:",
+       ids.map((id) => typeof id)
+    );
+
+     if (ids.length === 0) {
+      setEpisodeCounts({});
+     } else {
+      getEpisodeCounts(ids);
+     }
   }
 
   async function getTrashWebtoons() {
@@ -125,16 +139,20 @@ export default function LibraryPage() {
     const { data, error } = await supabase
       .from("episodes")
       .select("webtoon_id")
-      .eq("deleted", false)
       .in("webtoon_id", webtoonIds);
 
-    if (error) return alert(error.message);
+    if (error) {
+      console.error("getEpisodeCounts error:", error);
+      return;
+    }
 
     const counts: Record<number, number> = {};
     (data as EpisodeRow[]).forEach((episode) => {
       counts[episode.webtoon_id] = (counts[episode.webtoon_id] || 0) + 1;
     });
 
+    console.log("episodes raw:", data);
+    console.log("counts:", counts);
     setEpisodeCounts(counts);
   }
 
@@ -238,6 +256,8 @@ export default function LibraryPage() {
   const totalPages = Math.max(1, Math.ceil(totalWebtoonCount / itemsPerPage));
 
   const pagedWebtoons = filteredWebtoons;
+
+
 
   
 

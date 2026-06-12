@@ -36,6 +36,8 @@ export default function WebtoonDetailPage() {
   const params = useParams();
   const router = useRouter();
   const webtoonId = Number(params.id);
+  console.log("params.id =", params.id);
+  console.log("webtoonId =", webtoonId);
 
   const [webtoon, setWebtoon] = useState<Webtoon | null>(null);
   const [episodes, setEpisodes] = useState<Episode[]>([]);
@@ -106,13 +108,16 @@ export default function WebtoonDetailPage() {
   }
 
   async function getEpisodes() {
+    console.log("getEpisodes 실행 webtoonId =", webtoonId);
+
     const { data, error } = await supabase
       .from("episodes")
       .select("*")
       .eq("webtoon_id", webtoonId)
-      .eq("deleted", false)
       .order("episode_no", { ascending: true })
       .order("id", { ascending: true });
+      
+      console.log("episodes 조회 결과 =", data);
 
     if (error) {
       alert(error.message);
@@ -377,7 +382,7 @@ export default function WebtoonDetailPage() {
       .order("id", { ascending: true });
 
     if (error) {
-      alert(error.message);
+      console.error("getEpisodes error:", error);
       return;
     }
 
