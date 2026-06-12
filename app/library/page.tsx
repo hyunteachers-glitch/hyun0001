@@ -101,12 +101,6 @@ export default function LibraryPage() {
     
     const ids = (data || []).map((toon) => Number(toon.id));
 
-    console.log("1. 현재 페이지 작품 ids:", ids);
-    console.log(
-       "2. ids 타입:",
-       ids.map((id) => typeof id)
-    );
-
      if (ids.length === 0) {
       setEpisodeCounts({});
      } else {
@@ -139,6 +133,7 @@ export default function LibraryPage() {
     const { data, error } = await supabase
       .from("episodes")
       .select("webtoon_id")
+      .eq("deleted", false)
       .in("webtoon_id", webtoonIds);
 
     if (error) {
