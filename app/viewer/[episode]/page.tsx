@@ -19,53 +19,6 @@ type EpisodeImage = {
   image_order: number;
 };
 
-function ViewerImage({ src, order }: { src: string; order: number }) {
-  const [loaded, setLoaded] = useState(false);
-  const [error, setError] = useState(false);
-  const [retryKey, setRetryKey] = useState(0);
-
-  return (
-    <div className="relative w-full md:max-w-[540px] bg-neutral-950 border-b border-white/5">
-      {!loaded && !error && (
-        <div className="w-full h-[760px] flex items-center justify-center text-white/35 text-sm">
-          {order}번 이미지 불러오는 중...
-        </div>
-      )}
-
-      {error && (
-        <div className="w-full h-[760px] flex items-center justify-center text-white/50 text-sm">
-          <button
-            onClick={() => {
-              setError(false);
-              setLoaded(false);
-              setRetryKey((prev) => prev + 1);
-            }}
-          >
-            {order}번 이미지 불러오기 실패 · 다시 시도
-          </button>
-        </div>
-      )}
-
-      <img
-        key={retryKey}
-        src={src}
-        alt=""
-        loading="lazy"
-        decoding="async"
-        onLoad={() => {
-          setLoaded(true);
-          setError(false);
-        }}
-        onError={() => {
-          setError(true);
-          setLoaded(false);
-        }}
-        className={loaded ? "w-full block" : "hidden"}
-      />
-    </div>
-  );
-}
-
 export default function ViewerPage() {
   const params = useParams();
   const episodeId = Number(params.episode);
@@ -240,11 +193,12 @@ export default function ViewerPage() {
         </div>
 
         <div className="pt-14 md:pt-16 flex flex-col items-center">
-          {images.map((image, index) => (
-            <ViewerImage
+          {images.map((image) => (
+            <img
               key={image.id}
               src={image.image_url}
-              order={index + 1}
+              alt=""
+              className="w-full md:max-w-[540px] block"
             />
           ))}
 
