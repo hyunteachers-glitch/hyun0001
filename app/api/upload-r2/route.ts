@@ -3,27 +3,37 @@ import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
-const accountId = process.env.R2_ACCOUNT_ID!;
-const accessKeyId = process.env.R2_ACCESS_KEY_ID!;
-const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY!;
-const bucketName = process.env.R2_BUCKET_NAME!;
-const publicUrl = process.env.R2_PUBLIC_URL!;
-
-const s3 = new S3Client({
-  region: "auto",
-  endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
-  credentials: {
-    accessKeyId,
-    secretAccessKey,
-  },
-});
-
 function safeFileName(name: string) {
   return name.replace(/\s+/g, "_").replace(/[^\w.\-가-힣]/g, "");
 }
 
+function getEnv(name: string) {
+  const value = process.env[name];
+
+  if (!value) {
+    throw new Error(`Missing environment variable: ${name}`);
+  }
+
+  return value;
+}
+
 export async function POST(request: Request) {
   try {
+    const accountId = getEnv("R2_ACCOUNT_ID");
+    const accessKeyId = getEnv("R2_ACCESS_KEY_ID");
+    const secretAccessKey = getEnv("R2_SECRET_ACCESS_KEY");
+    const bucketName = getEnv("R2_BUCKET_NAME");
+    const publicUrl = getEnv("R2_PUBLIC_URL");
+
+    const s3 = new S3Client({
+      region: "auto",
+      endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
+      credentials: {
+        accessKeyId,
+        secretAccessKey,
+      },
+    });
+
     const formData = await request.formData();
     const file = formData.get("file");
 
@@ -56,8 +66,11 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("R2 upload error:", error);
 
+    const message =
+      error instanceof Error ? error.message : "R2 업로드 중 오류가 발생했습니다.";
+
     return NextResponse.json(
-      { error: "R2 업로드 중 오류가 발생했습니다." },
+      { error: message },
       { status: 500 }
     );
   }
