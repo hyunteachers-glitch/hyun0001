@@ -130,6 +130,8 @@ export default function UploadPage() {
   }
 
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
+     alert("handleUpload 실행");
+     
   const files = e.target.files;
   if (!files || files.length === 0) return;
 
