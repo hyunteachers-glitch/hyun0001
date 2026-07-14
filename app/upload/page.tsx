@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { supabase } from "@/lib/supabase/client";
 import PasswordGuard from "../components/PasswordGuard";
 import type { ImageItem, Webtoon } from "@/lib/types";
@@ -867,7 +868,14 @@ export default function UploadPage() {
                   : "border-white/15"
               }`}
             >
-              <img src={item.url} alt="" loading="lazy" className="w-full h-full object-cover" />
+              <Image
+                src={item.url}
+                alt=""
+                fill
+                sizes="(max-width: 768px) 33vw, 10vw"
+                loading="lazy"
+                className="object-cover"
+              />
 
               {selected && mode === "episode" && (
                 <div className="absolute top-1 right-1 w-7 h-7 bg-red-500 text-white flex items-center justify-center font-bold">
