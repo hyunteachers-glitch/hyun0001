@@ -1,5 +1,6 @@
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
@@ -19,6 +20,15 @@ function getEnv(name: string) {
 
 export async function POST(request: Request) {
   try {
+    const admin = await requireAdmin(request);
+
+    if (!admin) {
+      return NextResponse.json(
+        { error: "로그인한 관리자만 업로드할 수 있어." },
+        { status: 401 }
+      );
+    }
+
     const accountId = getEnv("R2_ACCOUNT_ID");
     const accessKeyId = getEnv("R2_ACCESS_KEY_ID");
     const secretAccessKey = getEnv("R2_SECRET_ACCESS_KEY");

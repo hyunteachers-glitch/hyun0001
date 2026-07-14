@@ -135,6 +135,14 @@ export default function UploadPage() {
   const files = e.target.files;
   if (!files || files.length === 0) return;
 
+  const { data: sessionData } = await supabase.auth.getSession();
+  const accessToken = sessionData.session?.access_token;
+
+  if (!accessToken) {
+    alert("로그인이 필요해.");
+    return;
+  }
+
   setUploading(true);
 
   try {
@@ -154,6 +162,9 @@ export default function UploadPage() {
 
           const response = await fetch("/api/upload-r2", {
             method: "POST",
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
             body: formData,
           });
 
