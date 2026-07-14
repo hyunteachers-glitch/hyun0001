@@ -363,13 +363,11 @@ export default function LibraryPage() {
     width={340}
     height={95}
     priority
-    className="mb-3"
   />
 </Link>
-          <p className="text-white/50">웹툰 보관 공간</p>
         </div>
 
-        <div className="flex gap-9 flex-wrap justify-end items-center">
+        <div className="flex gap-3 md:gap-9 justify-end items-center">
           <Link
             href="/"
             aria-label="홈"
