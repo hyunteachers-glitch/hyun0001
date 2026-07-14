@@ -6,17 +6,15 @@ import { supabase } from "./supabase";
 
 export default function HomePage() {
   const [password, setPassword] = useState("");
-  const [sitePassword, setSitePassword] = useState("");
   const [allowed, setAllowed] = useState(false);
+  const [checking, setChecking] = useState(false);
 
   const [changeMode, setChangeMode] = useState(false);
-  const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
   useEffect(() => {
     checkTodayAccess();
-    getSitePassword();
   }, []);
 
   function todayKey() {
@@ -32,68 +30,87 @@ export default function HomePage() {
     }
   }
 
-  async function getSitePassword() {
-    const { data, error } = await supabase
-      .from("site_password")
-      .select("password")
-      .eq("id", 1)
-      .single();
+  async function verifyPassword(candidate: string) {
+    const res = await fetch("/api/check-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: candidate }),
+    });
 
-    if (error) {
-      alert(error.message);
-      return;
+    if (!res.ok && res.status !== 400) {
+      throw new Error("비밀번호 확인 중 오류가 발생했어.");
     }
 
-    setSitePassword(data.password);
+    const data = await res.json();
+    return Boolean(data.valid);
   }
 
-  function enterSite() {
-    if (password !== sitePassword) {
-      alert("비밀번호가 틀렸어.");
-      return;
-    }
+  async function enterSite() {
+    if (checking) return;
+    setChecking(true);
 
-    localStorage.setItem("hyun0001_access_date", todayKey());
-    setAllowed(true);
-    setPassword("");
+    try {
+      const valid = await verifyPassword(password);
+
+      if (!valid) {
+        alert("비밀번호가 틀렸어.");
+        return;
+      }
+
+      localStorage.setItem("hyun0001_access_date", todayKey());
+      setAllowed(true);
+      setPassword("");
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "오류가 발생했어.");
+    } finally {
+      setChecking(false);
+    }
   }
 
   async function changePassword() {
-    if (currentPassword !== sitePassword) {
-      alert("현재 비밀번호가 틀렸어.");
-      return;
+    try {
+      if (!newPassword.trim()) {
+        alert("새 비밀번호를 입력해줘.");
+        return;
+      }
+
+      if (newPassword !== confirmPassword) {
+        alert("새 비밀번호가 서로 달라.");
+        return;
+      }
+
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+
+      if (!accessToken) {
+        alert("로그인이 필요해.");
+        return;
+      }
+
+      const res = await fetch("/api/update-password", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ newPassword }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data.error ?? "비밀번호 변경 중 오류가 발생했어.");
+        return;
+      }
+
+      alert("비밀번호가 변경됐어.");
+
+      setNewPassword("");
+      setConfirmPassword("");
+      setChangeMode(false);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "오류가 발생했어.");
     }
-
-    if (!newPassword.trim()) {
-      alert("새 비밀번호를 입력해줘.");
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      alert("새 비밀번호가 서로 달라.");
-      return;
-    }
-
-    const { error } = await supabase
-      .from("site_password")
-      .update({
-        password: newPassword,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", 1);
-
-    if (error) {
-      alert(error.message);
-      return;
-    }
-
-    alert("비밀번호가 변경됐어.");
-
-    setSitePassword(newPassword);
-    setCurrentPassword("");
-    setNewPassword("");
-    setConfirmPassword("");
-    setChangeMode(false);
   }
 
   if (!allowed) {
@@ -120,7 +137,8 @@ export default function HomePage() {
 
         <button
           onClick={enterSite}
-          className="w-full max-w-md border border-white rounded-2xl py-5 text-2xl hover:bg-white hover:text-black transition"
+          disabled={checking}
+          className="w-full max-w-md border border-white rounded-2xl py-5 text-2xl hover:bg-white hover:text-black transition disabled:opacity-50"
         >
           ENTER
         </button>
@@ -170,14 +188,6 @@ export default function HomePage() {
 
       {changeMode && (
         <div className="w-full max-w-md flex flex-col gap-4">
-          <input
-            type="password"
-            value={currentPassword}
-            onChange={(e) => setCurrentPassword(e.target.value)}
-            placeholder="현재 비밀번호"
-            className="bg-black border border-white/30 rounded-2xl py-4 px-4 text-center outline-none"
-          />
-
           <input
             type="password"
             value={newPassword}
