@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { Home, Upload, Pencil } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 import PasswordGuard from "../components/PasswordGuard";
 import type { Webtoon, Episode, ImageItem } from "@/lib/types";
@@ -368,13 +369,23 @@ export default function LibraryPage() {
           <p className="text-white/50">웹툰 보관 공간</p>
         </div>
 
-        <div className="flex gap-2 flex-wrap justify-end">
-          <Link href="/" className="border border-white px-4 py-2 rounded-full hover:bg-white hover:text-black transition">
-            HOME
+        <div className="flex gap-9 flex-wrap justify-end items-center">
+          <Link
+            href="/"
+            aria-label="홈"
+            title="홈"
+            className="p-2 rounded-full hover:bg-white hover:text-black transition"
+          >
+            <Home size={24} />
           </Link>
 
-          <Link href="/upload" className="border border-white px-4 py-2 rounded-full hover:bg-white hover:text-black transition">
-            UPLOAD
+          <Link
+            href="/upload"
+            aria-label="업로드"
+            title="업로드"
+            className="p-2 rounded-full hover:bg-white hover:text-black transition"
+          >
+            <Upload size={24} />
           </Link>
 
           <button
@@ -385,13 +396,15 @@ export default function LibraryPage() {
               setEditDescription("");
               setEditCoverUrl("");
             }}
+            aria-label="작품 수정"
+            title="작품 수정"
             className={
               editMode
-                ? "border border-white px-4 py-2 rounded-full bg-white text-black transition"
-                : "border border-white px-4 py-2 rounded-full hover:bg-white hover:text-black transition"
+                ? "p-2 rounded-full bg-white text-black transition"
+                : "p-2 rounded-full hover:bg-white hover:text-black transition"
             }
           >
-            작품 수정
+            <Pencil size={24} />
           </button>
         </div>
       </div>
