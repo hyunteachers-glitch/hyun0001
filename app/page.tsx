@@ -3,8 +3,13 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "./supabase";
+import { useSession } from "@/lib/useSession";
+import { ADMIN_EMAIL } from "@/lib/constants";
 
 export default function HomePage() {
+  const { session } = useSession();
+  const isAdmin = session?.user.email?.toLowerCase() === ADMIN_EMAIL;
+
   const [password, setPassword] = useState("");
   const [allowed, setAllowed] = useState(false);
   const [checking, setChecking] = useState(false);
@@ -113,6 +118,10 @@ export default function HomePage() {
     }
   }
 
+  async function handleLogout() {
+    await supabase.auth.signOut();
+  }
+
   if (!allowed) {
     return (
       <main className="min-h-screen bg-black text-white flex flex-col items-center justify-center gap-8 px-6">
@@ -156,6 +165,10 @@ export default function HomePage() {
         />
       </div>
 
+      {isAdmin && (
+        <p className="text-white/60 -mt-4">관리자로 로그인됨 ({session!.user.email})</p>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-4xl">
         <Link
           href="/library"
@@ -171,12 +184,21 @@ export default function HomePage() {
           UPLOAD
         </Link>
 
-        <Link
-          href="/login"
-          className="border border-white/40 rounded-2xl py-3 text-center text-2xl hover:bg-white hover:text-black transition"
-        >
-          LOGIN
-        </Link>
+        {session ? (
+          <button
+            onClick={handleLogout}
+            className="border border-white/40 rounded-2xl py-3 text-center text-2xl hover:bg-white hover:text-black transition"
+          >
+            LOGOUT
+          </button>
+        ) : (
+          <Link
+            href="/login"
+            className="border border-white/40 rounded-2xl py-3 text-center text-2xl hover:bg-white hover:text-black transition"
+          >
+            LOGIN
+          </Link>
+        )}
 
         <button
           onClick={() => setChangeMode(!changeMode)}

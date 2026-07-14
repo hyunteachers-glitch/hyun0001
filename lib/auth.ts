@@ -1,6 +1,5 @@
 import { createClient, type User } from "@supabase/supabase-js";
-
-const ADMIN_EMAIL = "hyunteachers@gmail.com";
+import { ADMIN_EMAIL } from "@/lib/constants";
 
 function getEnv(name: string) {
   const value = process.env[name];
