@@ -5,27 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
 import PasswordGuard from "../../components/PasswordGuard";
-
-type Webtoon = {
-  id: number;
-  title: string;
-  cover_url: string;
-  main_image_url: string;
-  description: string;
-  deleted: boolean;
-};
-
-type Episode = {
-  id: number;
-  title: string | null;
-  episode_no: number;
-  deleted: boolean;
-};
-
-type ImageItem = {
-  id: number;
-  url: string;
-};
+import type { Webtoon, Episode, ImageItem } from "@/lib/types";
 
 type EditedEpisode = {
   title: string;

@@ -5,19 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
 import PasswordGuard from "../../components/PasswordGuard";
-
-type Episode = {
-  id: number;
-  title: string | null;
-  episode_no: number;
-  webtoon_id: number;
-};
-
-type EpisodeImage = {
-  id: number;
-  image_url: string;
-  image_order: number;
-};
+import type { Episode, EpisodeImage } from "@/lib/types";
 
 export default function ViewerPage() {
   const params = useParams();

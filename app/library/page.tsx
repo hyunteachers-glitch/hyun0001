@@ -6,30 +6,12 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import PasswordGuard from "../components/PasswordGuard";
-
-type WebtoonItem = {
-  id: number;
-  title: string;
-  cover_url: string;
-  description?: string | null;
-  deleted: boolean;
-  updated_at: string | null;
-  created_at?: string | null;
-};
-
-type EpisodeRow = {
-  webtoon_id: number;
-};
-
-type ImageItem = {
-  id: number;
-  url: string;
-};
+import type { Webtoon, Episode, ImageItem } from "@/lib/types";
 
 export default function LibraryPage() {
   const router = useRouter();
-  const [webtoons, setWebtoons] = useState<WebtoonItem[]>([]);
-  const [trashWebtoons, setTrashWebtoons] = useState<WebtoonItem[]>([]);
+  const [webtoons, setWebtoons] = useState<Webtoon[]>([]);
+  const [trashWebtoons, setTrashWebtoons] = useState<Webtoon[]>([]);
   const [images, setImages] = useState<ImageItem[]>([]);
   const [episodeCounts, setEpisodeCounts] = useState<Record<number, number>>({});
 
@@ -142,7 +124,7 @@ export default function LibraryPage() {
     }
 
     const counts: Record<number, number> = {};
-    (data as EpisodeRow[]).forEach((episode) => {
+    (data as Pick<Episode, "webtoon_id">[]).forEach((episode) => {
       counts[episode.webtoon_id] = (counts[episode.webtoon_id] || 0) + 1;
     });
 
@@ -151,7 +133,7 @@ export default function LibraryPage() {
     setEpisodeCounts(counts);
   }
 
-  function startEditWebtoon(toon: WebtoonItem) {
+  function startEditWebtoon(toon: Webtoon) {
     setEditingWebtoonId(toon.id);
     setEditTitle(toon.title);
     setEditDescription(toon.description || "");
@@ -238,7 +220,7 @@ export default function LibraryPage() {
     getTrashWebtoons();
   }
 
-  function getTime(toon: WebtoonItem) {
+  function getTime(toon: Webtoon) {
     return new Date(toon.updated_at || toon.created_at || 0).getTime();
   }
 
@@ -284,7 +266,7 @@ export default function LibraryPage() {
     );
   }
 
-  function Card({ toon, trash = false }: { toon: WebtoonItem; trash?: boolean }) {
+  function Card({ toon, trash = false }: { toon: Webtoon; trash?: boolean }) {
     const selected = editingWebtoonId === toon.id;
 
     const cardInner = (

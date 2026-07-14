@@ -4,16 +4,9 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
 import PasswordGuard from "../components/PasswordGuard";
+import type { ImageItem, Webtoon } from "@/lib/types";
 
-type ImageItem = {
-  id: number;
-  url: string;
-};
-
-type WebtoonItem = {
-  id: number;
-  title: string;
-};
+type WebtoonItem = Pick<Webtoon, "id" | "title">;
 
 const IMAGE_LIMIT = 100;
 
