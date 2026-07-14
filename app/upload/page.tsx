@@ -21,6 +21,8 @@ export default function UploadPage() {
   const [images, setImages] = useState<ImageItem[]>([]);
   const [webtoons, setWebtoons] = useState<WebtoonItem[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<{ completed: number; total: number } | null>(null);
+  const [showUploadModal, setShowUploadModal] = useState(false);
   const [failedUploads, setFailedUploads] = useState<FailedUpload[]>([]);
   const [lastUploadSummary, setLastUploadSummary] = useState<{ success: number; failed: number } | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -176,12 +178,15 @@ export default function UploadPage() {
     }
 
     setUploading(true);
+    setShowUploadModal(true);
     setFailedUploads([]);
     setLastUploadSummary(null);
+    setUploadProgress({ completed: 0, total: tasks.length });
 
     const chunkSize = 5;
     const failures: FailedUpload[] = [];
     let successCount = 0;
+    let completedCount = 0;
 
     for (let i = 0; i < tasks.length; i += chunkSize) {
       const chunk = tasks.slice(i, i + chunkSize);
@@ -223,6 +228,9 @@ export default function UploadPage() {
           successCount += succeeded.length;
         }
       }
+
+      completedCount += chunk.length;
+      setUploadProgress({ completed: completedCount, total: tasks.length });
     }
 
     setFailedUploads(failures);
@@ -527,6 +535,10 @@ export default function UploadPage() {
           toon.title.toLowerCase().includes(webtoonSearch.toLowerCase())
         );
 
+  const uploadPercent = uploadProgress
+    ? Math.round((uploadProgress.completed / uploadProgress.total) * 100)
+    : 0;
+
   if (episodePreviewMode) {
     return (
       <main className="min-h-screen bg-black text-white px-4 md:px-8 py-8">
@@ -682,37 +694,6 @@ export default function UploadPage() {
           </button>
         </div>
       </div>
-
-      {uploading && <p className="mb-6 text-white/60">업로드 중...</p>}
-
-      {lastUploadSummary && !uploading && (
-        <div className="mb-6 border border-white/15 rounded-2xl p-4 flex flex-col gap-3">
-          <p className="text-white/70">
-            업로드 완료: 성공 {lastUploadSummary.success}장
-            {lastUploadSummary.failed > 0 && `, 실패 ${lastUploadSummary.failed}장`}
-          </p>
-
-          {failedUploads.length > 0 && (
-            <>
-              <ul className="text-red-400 text-sm flex flex-col gap-1">
-                {failedUploads.map((item, index) => (
-                  <li key={`${item.fileName}-${index}`}>
-                    {item.fileName} — {item.reason}
-                  </li>
-                ))}
-              </ul>
-
-              <button
-                onClick={retryFailedUploads}
-                disabled={uploading}
-                className="border border-white px-4 py-2 rounded-full self-start hover:bg-white hover:text-black transition disabled:opacity-40"
-              >
-                실패한 {failedUploads.length}장 재시도
-              </button>
-            </>
-          )}
-        </div>
-      )}
 
       {mode === "work" && (
         <div className="mb-8 max-w-[900px] flex flex-col gap-3">
@@ -929,6 +910,66 @@ export default function UploadPage() {
           <p className="text-white/35">모든 사진을 불러왔어.</p>
         )}
       </div>
+
+      {showUploadModal && (
+        <div className="fixed inset-0 z-[9999] bg-black/70 flex items-center justify-center p-5">
+          <div className="w-full max-w-sm bg-black border border-white/20 rounded-2xl p-6 flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold">{uploading ? "업로드 중" : "업로드 완료"}</h3>
+
+              <button
+                onClick={() => setShowUploadModal(false)}
+                className="text-white/50 hover:text-white transition text-xl leading-none"
+              >
+                ×
+              </button>
+            </div>
+
+            {uploading && uploadProgress && (
+              <>
+                <p className="text-white/70 text-sm">
+                  {uploadProgress.completed} / {uploadProgress.total}장 업로드 중... {uploadPercent}%
+                </p>
+
+                <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-white transition-all duration-300"
+                    style={{ width: `${uploadPercent}%` }}
+                  />
+                </div>
+              </>
+            )}
+
+            {!uploading && lastUploadSummary && (
+              <div className="flex flex-col gap-3">
+                <p className="text-white/70">
+                  완료: 성공 {lastUploadSummary.success}장
+                  {lastUploadSummary.failed > 0 && `, 실패 ${lastUploadSummary.failed}장`}
+                </p>
+
+                {failedUploads.length > 0 && (
+                  <>
+                    <ul className="text-red-400 text-sm flex flex-col gap-1 max-h-[240px] overflow-y-auto">
+                      {failedUploads.map((item, index) => (
+                        <li key={`${item.fileName}-${index}`}>
+                          {item.fileName} — {item.reason}
+                        </li>
+                      ))}
+                    </ul>
+
+                    <button
+                      onClick={retryFailedUploads}
+                      className="border border-white px-4 py-2 rounded-full self-start hover:bg-white hover:text-black transition"
+                    >
+                      실패한 {failedUploads.length}장 재시도
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {previewImage && (
         <div className="fixed inset-0 z-[9999] bg-black/95 flex items-center justify-center p-5">
