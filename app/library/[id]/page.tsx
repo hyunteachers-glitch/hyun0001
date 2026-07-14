@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { supabase } from "../../supabase";
+import { supabase } from "@/lib/supabase/client";
 import PasswordGuard from "../../components/PasswordGuard";
 
 type Webtoon = {
