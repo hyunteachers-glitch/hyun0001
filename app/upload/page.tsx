@@ -8,12 +8,21 @@ import type { ImageItem, Webtoon } from "@/lib/types";
 
 type WebtoonItem = Pick<Webtoon, "id" | "title">;
 
+type FailedUpload = {
+  fileName: string;
+  reason: string;
+  file: File;
+  uploadedUrl?: string; // R2 업로드는 성공했지만 DB insert만 실패한 경우, 재시도 시 재업로드 생략용
+};
+
 const IMAGE_LIMIT = 100;
 
 export default function UploadPage() {
   const [images, setImages] = useState<ImageItem[]>([]);
   const [webtoons, setWebtoons] = useState<WebtoonItem[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [failedUploads, setFailedUploads] = useState<FailedUpload[]>([]);
+  const [lastUploadSummary, setLastUploadSummary] = useState<{ success: number; failed: number } | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMoreImages, setHasMoreImages] = useState(true);
 
@@ -122,90 +131,121 @@ export default function UploadPage() {
     setWebtoons(data || []);
   }
 
-  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
-     
+  async function uploadSingleFile(
+    file: File,
+    accessToken: string
+  ): Promise<{ ok: true; url: string } | { ok: false; reason: string }> {
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
 
-  const files = e.target.files;
-  if (!files || files.length === 0) return;
+      const response = await fetch("/api/upload-r2", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${accessToken}` },
+        body: formData,
+      });
 
-  const { data: sessionData } = await supabase.auth.getSession();
-  const accessToken = sessionData.session?.access_token;
+      const result = await response.json().catch(() => null);
 
-  if (!accessToken) {
-    alert("로그인이 필요해.");
-    return;
+      if (!response.ok) {
+        return { ok: false, reason: result?.error || `업로드 실패 (${response.status})` };
+      }
+
+      if (!result?.url) {
+        return { ok: false, reason: "서버 응답에 URL이 없어." };
+      }
+
+      return { ok: true, url: result.url as string };
+    } catch (error) {
+      return {
+        ok: false,
+        reason: error instanceof Error ? error.message : "네트워크 오류로 업로드에 실패했어.",
+      };
+    }
   }
 
-  setUploading(true);
+  async function runUpload(tasks: { file: File; knownUrl?: string }[]) {
+    if (tasks.length === 0) return;
 
-  try {
-    const fileArray = Array.from(files);
-    const uploadedRows: { order: number; url: string }[] = [];
-    const chunkSize = 5;
+    const { data: sessionData } = await supabase.auth.getSession();
+    const accessToken = sessionData.session?.access_token;
 
-    for (let i = 0; i < fileArray.length; i += chunkSize) {
-      const chunk = fileArray.slice(i, i + chunkSize);
-
-      const results = await Promise.all(
-        chunk.map(async (file, index) => {
-          const originalOrder = i + index;
-
-          const formData = new FormData();
-          formData.append("file", file);
-
-          const response = await fetch("/api/upload-r2", {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-            },
-            body: formData,
-          });
-
-          const result = await response.json();
-
-          if (!response.ok) {
-            console.error(result);
-            return null;
-          }
-
-          return {
-            order: originalOrder,
-            url: result.url as string,
-          };
-        })
-      );
-
-      const validResults = results.filter(
-        (item): item is { order: number; url: string } => item !== null
-      );
-
-      uploadedRows.push(...validResults);
+    if (!accessToken) {
+      alert("로그인이 필요해.");
+      return;
     }
 
-    const orderedRows = uploadedRows
-      .sort((a, b) => a.order - b.order)
-      .map((item) => ({
-        url: item.url,
-      }));
+    setUploading(true);
+    setFailedUploads([]);
+    setLastUploadSummary(null);
 
-    if (orderedRows.length > 0) {
-      const { error: insertError } = await supabase
-        .from("images")
-        .insert(orderedRows);
+    const chunkSize = 5;
+    const failures: FailedUpload[] = [];
+    let successCount = 0;
 
-      if (insertError) {
-        alert(insertError.message);
+    for (let i = 0; i < tasks.length; i += chunkSize) {
+      const chunk = tasks.slice(i, i + chunkSize);
+
+      const chunkResults = await Promise.all(
+        chunk.map(async (task) => ({
+          file: task.file,
+          result: task.knownUrl
+            ? ({ ok: true, url: task.knownUrl } as const)
+            : await uploadSingleFile(task.file, accessToken),
+        }))
+      );
+
+      for (const item of chunkResults) {
+        if (!item.result.ok) {
+          failures.push({ fileName: item.file.name, reason: item.result.reason, file: item.file });
+        }
+      }
+
+      const succeeded = chunkResults.filter(
+        (item): item is { file: File; result: { ok: true; url: string } } => item.result.ok
+      );
+
+      if (succeeded.length > 0) {
+        const { error: insertError } = await supabase
+          .from("images")
+          .insert(succeeded.map((item) => ({ url: item.result.url })));
+
+        if (insertError) {
+          for (const item of succeeded) {
+            failures.push({
+              fileName: item.file.name,
+              reason: `R2 업로드는 성공, DB 저장 실패: ${insertError.message}`,
+              file: item.file,
+              uploadedUrl: item.result.url,
+            });
+          }
+        } else {
+          successCount += succeeded.length;
+        }
       }
     }
 
+    setFailedUploads(failures);
+    setLastUploadSummary({ success: successCount, failed: failures.length });
+
     await getImages(true);
-  } catch (error) {
-    console.error(error);
-    alert("업로드 중 오류가 발생했어.");
+    setUploading(false);
   }
 
-  setUploading(false);
-}
+  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    await runUpload(Array.from(files).map((file) => ({ file })));
+  }
+
+  async function retryFailedUploads() {
+    if (failedUploads.length === 0) return;
+
+    await runUpload(
+      failedUploads.map((item) => ({ file: item.file, knownUrl: item.uploadedUrl }))
+    );
+  }
 
   function getRangeItems(startId: number, endId: number) {
     const startIndex = images.findIndex((image) => image.id === startId);
@@ -644,6 +684,35 @@ export default function UploadPage() {
       </div>
 
       {uploading && <p className="mb-6 text-white/60">업로드 중...</p>}
+
+      {lastUploadSummary && !uploading && (
+        <div className="mb-6 border border-white/15 rounded-2xl p-4 flex flex-col gap-3">
+          <p className="text-white/70">
+            업로드 완료: 성공 {lastUploadSummary.success}장
+            {lastUploadSummary.failed > 0 && `, 실패 ${lastUploadSummary.failed}장`}
+          </p>
+
+          {failedUploads.length > 0 && (
+            <>
+              <ul className="text-red-400 text-sm flex flex-col gap-1">
+                {failedUploads.map((item, index) => (
+                  <li key={`${item.fileName}-${index}`}>
+                    {item.fileName} — {item.reason}
+                  </li>
+                ))}
+              </ul>
+
+              <button
+                onClick={retryFailedUploads}
+                disabled={uploading}
+                className="border border-white px-4 py-2 rounded-full self-start hover:bg-white hover:text-black transition disabled:opacity-40"
+              >
+                실패한 {failedUploads.length}장 재시도
+              </button>
+            </>
+          )}
+        </div>
+      )}
 
       {mode === "work" && (
         <div className="mb-8 max-w-[900px] flex flex-col gap-3">
