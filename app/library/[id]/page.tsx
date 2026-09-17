@@ -12,6 +12,11 @@ type EditedEpisode = {
   episode_no: string;
 };
 
+const IMAGE_GRID_INITIAL_DESKTOP = 16;
+const IMAGE_GRID_INITIAL_MOBILE = 6;
+const IMAGE_GRID_STEP_DESKTOP = 8;
+const IMAGE_GRID_STEP_MOBILE = 3;
+
 export default function WebtoonDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -31,6 +36,14 @@ export default function WebtoonDetailPage() {
   const [coverInput, setCoverInput] = useState("");
   const [mainImageInput, setMainImageInput] = useState("");
 
+  const [isMobile, setIsMobile] = useState(false);
+  const [visibleThumbnailCount, setVisibleThumbnailCount] = useState(
+    IMAGE_GRID_INITIAL_DESKTOP
+  );
+  const [visibleMainImageCount, setVisibleMainImageCount] = useState(
+    IMAGE_GRID_INITIAL_DESKTOP
+  );
+
   const [episodeEditMode, setEpisodeEditMode] = useState(false);
   const [episodeDeleteMode, setEpisodeDeleteMode] = useState(false);
   const [episodeSortOrder, setEpisodeSortOrder] = useState<"asc" | "desc">(
@@ -49,6 +62,32 @@ export default function WebtoonDetailPage() {
     getEpisodes();
     getImages();
   }, [webtoonId]);
+
+  useEffect(() => {
+    function checkMobile() {
+      setIsMobile(window.innerWidth < 768);
+    }
+
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
+  useEffect(() => {
+    if (thumbnailEditMode) {
+      setVisibleThumbnailCount(
+        isMobile ? IMAGE_GRID_INITIAL_MOBILE : IMAGE_GRID_INITIAL_DESKTOP
+      );
+    }
+  }, [thumbnailEditMode, isMobile]);
+
+  useEffect(() => {
+    if (titlePhotoEditMode) {
+      setVisibleMainImageCount(
+        isMobile ? IMAGE_GRID_INITIAL_MOBILE : IMAGE_GRID_INITIAL_DESKTOP
+      );
+    }
+  }, [titlePhotoEditMode, isMobile]);
 
   const sortedEpisodes = useMemo(() => {
     return [...episodes].sort((a, b) => {
@@ -420,7 +459,7 @@ export default function WebtoonDetailPage() {
     <PasswordGuard>
     <main className="min-h-screen bg-black text-white px-4 md:px-8 py-6 md:py-8">
       <div className="mb-8 flex items-center justify-between gap-3">
-        <Link href="/library" className={topButtonClass}>
+        <Link href="/library" className={backButtonClass}>
           ← LIBRARY
         </Link>
 
@@ -527,7 +566,7 @@ export default function WebtoonDetailPage() {
           <h2 className="text-xl font-bold mb-4">썸네일 선택</h2>
 
           <div className="grid grid-cols-3 md:grid-cols-8 gap-3">
-            {images.map((image) => (
+            {images.slice(0, visibleThumbnailCount).map((image) => (
               <button
                 key={image.id}
                 onClick={() => setCoverInput(image.url)}
@@ -541,6 +580,22 @@ export default function WebtoonDetailPage() {
               </button>
             ))}
           </div>
+
+          {visibleThumbnailCount < images.length && (
+            <div className="flex justify-center mt-4">
+              <button
+                onClick={() =>
+                  setVisibleThumbnailCount(
+                    (prev) =>
+                      prev + (isMobile ? IMAGE_GRID_STEP_MOBILE : IMAGE_GRID_STEP_DESKTOP)
+                  )
+                }
+                className="border border-white/25 px-5 py-2 rounded-full hover:bg-white hover:text-black transition text-sm"
+              >
+                더보기
+              </button>
+            </div>
+          )}
         </section>
       )}
 
@@ -549,7 +604,7 @@ export default function WebtoonDetailPage() {
           <h2 className="text-xl font-bold mb-4">메인사진 선택</h2>
 
           <div className="grid grid-cols-3 md:grid-cols-8 gap-3">
-            {images.map((image) => (
+            {images.slice(0, visibleMainImageCount).map((image) => (
               <button
                 key={image.id}
                 onClick={() => setMainImageInput(image.url)}
@@ -563,6 +618,22 @@ export default function WebtoonDetailPage() {
               </button>
             ))}
           </div>
+
+          {visibleMainImageCount < images.length && (
+            <div className="flex justify-center mt-4">
+              <button
+                onClick={() =>
+                  setVisibleMainImageCount(
+                    (prev) =>
+                      prev + (isMobile ? IMAGE_GRID_STEP_MOBILE : IMAGE_GRID_STEP_DESKTOP)
+                  )
+                }
+                className="border border-white/25 px-5 py-2 rounded-full hover:bg-white hover:text-black transition text-sm"
+              >
+                더보기
+              </button>
+            </div>
+          )}
         </section>
       )}
 
@@ -716,6 +787,9 @@ export default function WebtoonDetailPage() {
     </PasswordGuard>
   );
 }
+
+const backButtonClass =
+  "px-4 py-2 rounded-full hover:bg-white hover:text-black transition whitespace-nowrap text-sm md:text-base";
 
 const topButtonClass =
   "border border-white/25 px-4 py-2 rounded-full hover:bg-white hover:text-black transition whitespace-nowrap text-sm md:text-base";
