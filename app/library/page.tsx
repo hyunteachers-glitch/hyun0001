@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { Home, Upload, Pencil } from "lucide-react";
+import { Home, Plus, Pencil, Trash2 } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 import PasswordGuard from "../components/PasswordGuard";
 import type { Webtoon, Episode, ImageItem } from "@/lib/types";
@@ -12,7 +12,6 @@ import type { Webtoon, Episode, ImageItem } from "@/lib/types";
 export default function LibraryPage() {
   const router = useRouter();
   const [webtoons, setWebtoons] = useState<Webtoon[]>([]);
-  const [trashWebtoons, setTrashWebtoons] = useState<Webtoon[]>([]);
   const [images, setImages] = useState<ImageItem[]>([]);
   const [episodeCounts, setEpisodeCounts] = useState<Record<number, number>>({});
 
@@ -21,7 +20,6 @@ export default function LibraryPage() {
   const [page, setPage] = useState(1);
   const [totalWebtoonCount, setTotalWebtoonCount] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
-  const [showTrash, setShowTrash] = useState(false);
 
   const [editMode, setEditMode] = useState(false);
   const [editingWebtoonId, setEditingWebtoonId] = useState<number | null>(null);
@@ -32,7 +30,6 @@ export default function LibraryPage() {
   const itemsPerPage = isMobile ? 28 : 60;
 
   useEffect(() => {
-    getTrashWebtoons();
     getImages();
 
     function checkMobile() {
@@ -89,17 +86,6 @@ export default function LibraryPage() {
      } else {
       getEpisodeCounts(ids);
      }
-  }
-
-  async function getTrashWebtoons() {
-    const { data, error } = await supabase
-      .from("webtoons")
-      .select("*")
-      .eq("deleted", true)
-      .order("updated_at", { ascending: false });
-
-    if (error) return alert(error.message);
-    setTrashWebtoons(data || []);
   }
 
   async function getImages() {
@@ -186,41 +172,6 @@ export default function LibraryPage() {
     setEditCoverUrl("");
   }
 
-  async function restoreWebtoon(id: number) {
-    const { error } = await supabase
-      .from("webtoons")
-      .update({ deleted: false, updated_at: new Date().toISOString() })
-      .eq("id", id);
-
-    if (error) return alert(error.message);
-
-    getWebtoons();
-    getTrashWebtoons();
-  }
-
-  async function permanentDeleteWebtoon(id: number) {
-    const ok = confirm("정말 영구 삭제할까?");
-    if (!ok) return;
-
-    const { data: episodes } = await supabase
-      .from("episodes")
-      .select("id")
-      .eq("webtoon_id", id);
-
-    const episodeIds = episodes?.map((episode) => episode.id) || [];
-
-    if (episodeIds.length > 0) {
-      await supabase.from("episode_images").delete().in("episode_id", episodeIds);
-    }
-
-    await supabase.from("episodes").delete().eq("webtoon_id", id);
-    await supabase.from("webtoon_images").delete().eq("webtoon_id", id);
-    await supabase.from("webtoons").delete().eq("id", id);
-
-    getWebtoons();
-    getTrashWebtoons();
-  }
-
   function getTime(toon: Webtoon) {
     return new Date(toon.updated_at || toon.created_at || 0).getTime();
   }
@@ -243,11 +194,16 @@ export default function LibraryPage() {
   const thumbnailSize = isMobile ? 88 : 190;
   const cardHeight = isMobile ? 132 : 275;
 
+  const gridColumns = isMobile ? 4 : 6;
+  const gridGap = isMobile ? 12 : 20;
+
   const gridStyle = {
     display: "grid",
-    gridTemplateColumns: isMobile ? "repeat(4, 88px)" : "repeat(6, 190px)",
-    gap: isMobile ? "12px" : "20px",
+    gridTemplateColumns: `repeat(${gridColumns}, ${cardWidth}px)`,
+    gap: `${gridGap}px`,
   };
+
+  const gridWidth = gridColumns * cardWidth + (gridColumns - 1) * gridGap;
 
   function EpisodeLabel({ toonId }: { toonId: number }) {
     const count = episodeCounts[toonId] || 0;
@@ -267,13 +223,13 @@ export default function LibraryPage() {
     );
   }
 
-  function Card({ toon, trash = false }: { toon: Webtoon; trash?: boolean }) {
+  function Card({ toon }: { toon: Webtoon }) {
     const selected = editingWebtoonId === toon.id;
 
     const cardInner = (
       <div
         onClick={(e) => {
-          if (editMode && !trash) {
+          if (editMode) {
             e.preventDefault();
             startEditWebtoon(toon);
           }
@@ -281,18 +237,16 @@ export default function LibraryPage() {
         style={{
           position: "relative",
           width: cardWidth,
-          height: trash ? "auto" : cardHeight,
+          height: cardHeight,
           minHeight: cardHeight,
           borderRadius: "14px",
           overflow: "hidden",
           border: selected
             ? "2px solid rgb(239,68,68)"
-            : trash
-            ? "1px solid rgba(239,68,68,0.65)"
             : "1px solid rgba(255,255,255,0.28)",
           background: selected ? "rgba(239,68,68,0.12)" : "rgba(255,255,255,0.02)",
           color: "white",
-          cursor: editMode && !trash ? "pointer" : "default",
+          cursor: editMode ? "pointer" : "default",
         }}
       >
         <div style={{ width: thumbnailSize, height: thumbnailSize, overflow: "hidden" }}>
@@ -318,22 +272,10 @@ export default function LibraryPage() {
         </div>
 
         <EpisodeLabel toonId={toon.id} />
-
-        {trash && (
-          <div style={{ padding: isMobile ? "6px" : "9px", paddingTop: 0 }} className="flex flex-col gap-1">
-            <button onClick={() => restoreWebtoon(toon.id)} className="border border-white/30 text-white text-[10px] md:text-xs py-1 rounded-lg hover:bg-white hover:text-black transition">
-              복구
-            </button>
-
-            <button onClick={() => permanentDeleteWebtoon(toon.id)} className="border border-red-500 text-red-400 text-[10px] md:text-xs py-1 rounded-lg hover:bg-red-500 hover:text-white transition">
-              영구삭제
-            </button>
-          </div>
-        )}
       </div>
     );
 
-    if (trash || editMode) return cardInner;
+    if (editMode) return cardInner;
 
     return (
        <div
@@ -383,7 +325,7 @@ export default function LibraryPage() {
             title="업로드"
             className="p-2 rounded-full hover:bg-white hover:text-black transition"
           >
-            <Upload size={24} />
+            <Plus size={24} />
           </Link>
 
           <button
@@ -404,6 +346,15 @@ export default function LibraryPage() {
           >
             <Pencil size={24} />
           </button>
+
+          <Link
+            href="/library/trash"
+            aria-label="휴지통"
+            title="휴지통"
+            className="p-2 rounded-full text-red-500 hover:bg-red-500 hover:text-white transition"
+          >
+            <Trash2 size={24} />
+          </Link>
         </div>
       </div>
 
@@ -465,15 +416,14 @@ export default function LibraryPage() {
         </section>
       )}
 
-      <div className="mb-10 flex justify-center items-center gap-3 flex-wrap">
+      <div className="mx-auto mb-2 md:mb-4" style={{ width: gridWidth, maxWidth: "100%" }}>
         <input
           type="text"
           placeholder="작품 검색"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
+          className="w-full"
           style={{
-            width: "420px",
-            maxWidth: "100%",
             border: "1px solid rgba(255,255,255,0.25)",
             borderRadius: "999px",
             padding: "14px 22px",
@@ -484,12 +434,25 @@ export default function LibraryPage() {
             textAlign: "center",
           }}
         />
+      </div>
 
-        <button onClick={() => setSortType("abc")} className={`px-4 py-3 rounded-full border transition ${sortType === "abc" ? "bg-white text-black border-white" : "border-white/20 text-white hover:bg-white hover:text-black"}`}>
+      <div
+        className="mx-auto mb-2 md:mb-10 flex justify-end items-center gap-2 text-sm md:text-base"
+        style={{ width: gridWidth, maxWidth: "100%" }}
+      >
+        <button
+          onClick={() => setSortType("abc")}
+          className={sortType === "abc" ? "text-white" : "text-white/40 hover:text-white/70 transition"}
+        >
           가나다순
         </button>
 
-        <button onClick={() => setSortType("latest")} className={`px-4 py-3 rounded-full border transition ${sortType === "latest" ? "bg-white text-black border-white" : "border-white/20 text-white hover:bg-white hover:text-black"}`}>
+        <span className="text-white/20">|</span>
+
+        <button
+          onClick={() => setSortType("latest")}
+          className={sortType === "latest" ? "text-white" : "text-white/40 hover:text-white/70 transition"}
+        >
           최신순
         </button>
       </div>
@@ -515,33 +478,6 @@ export default function LibraryPage() {
           →
         </button>
       </div>
-
-      <section className="mt-20 border-t border-white/10 pt-8">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h2 className="text-3xl font-bold">TRASH</h2>
-            <p className="text-white/40 mt-2">삭제된 작품 보관 공간</p>
-          </div>
-
-          <button onClick={() => setShowTrash(!showTrash)} className="border border-red-500 text-red-400 px-4 py-2 rounded-full hover:bg-red-500 hover:text-white transition">
-            {showTrash ? "휴지통 닫기" : "휴지통 보기"}
-          </button>
-        </div>
-
-        {showTrash && (
-          <>
-            {trashWebtoons.length === 0 && <p className="text-white/40">휴지통이 비어 있어.</p>}
-
-            <div className="flex justify-center">
-              <div style={gridStyle}>
-                {trashWebtoons.map((toon) => (
-                  <Card key={toon.id} toon={toon} trash />
-                ))}
-              </div>
-            </div>
-          </>
-        )}
-      </section>
     </main>
     </PasswordGuard>
   );
