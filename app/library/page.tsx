@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { Home, Plus, Pencil, Trash2 } from "lucide-react";
+import { Home, Plus, Pencil, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 import PasswordGuard from "../components/PasswordGuard";
 import type { Webtoon, Episode, ImageItem } from "@/lib/types";
@@ -183,6 +183,18 @@ export default function LibraryPage() {
   const filteredWebtoons = webtoons;
 
   const totalPages = Math.max(1, Math.ceil(totalWebtoonCount / itemsPerPage));
+
+  const pageGroupSize = 5;
+  const pageGroupStart = Math.floor((page - 1) / pageGroupSize) * pageGroupSize + 1;
+  const pageGroupEnd = Math.min(pageGroupStart + pageGroupSize - 1, totalPages);
+  const pageNumbers = Array.from(
+    { length: pageGroupEnd - pageGroupStart + 1 },
+    (_, i) => pageGroupStart + i
+  );
+  const pageSlots: (number | null)[] = [
+    ...pageNumbers,
+    ...Array(pageGroupSize - pageNumbers.length).fill(null),
+  ];
 
   const pagedWebtoons = filteredWebtoons;
 
@@ -465,17 +477,73 @@ export default function LibraryPage() {
         </div>
       </div>
 
-      <div className="mt-12 flex justify-center items-center gap-3">
-        <button onClick={() => setPage((prev) => Math.max(1, prev - 1))} disabled={page === 1} className="border border-white/30 px-4 py-2 rounded-full disabled:opacity-30 hover:bg-white hover:text-black transition">
-          ←
+      <div className="mt-12 flex justify-center items-center gap-2">
+        <button
+          onClick={() => {
+            setPage(1);
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }}
+          disabled={page === 1}
+          className="w-9 h-9 md:w-10 md:h-10 flex items-center justify-center rounded-lg border border-white/30 hover:bg-white hover:text-black transition disabled:opacity-30 disabled:pointer-events-none"
+        >
+          <ChevronsLeft size={18} />
         </button>
 
-        <span className="text-white/70">
-          {page} / {totalPages}
-        </span>
+        <button
+          onClick={() => {
+            setPage((prev) => Math.max(1, prev - 1));
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }}
+          disabled={page === 1}
+          className="w-9 h-9 md:w-10 md:h-10 flex items-center justify-center rounded-lg border border-white/30 hover:bg-white hover:text-black transition disabled:opacity-30 disabled:pointer-events-none"
+        >
+          <ChevronLeft size={18} />
+        </button>
 
-        <button onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))} disabled={page === totalPages} className="border border-white/30 px-4 py-2 rounded-full disabled:opacity-30 hover:bg-white hover:text-black transition">
-          →
+        {pageSlots.map((num, i) =>
+          num === null ? (
+            <div
+              key={`empty-${i}`}
+              className="w-9 h-9 md:w-10 md:h-10 rounded-lg border border-white/10"
+            />
+          ) : (
+            <button
+              key={num}
+              onClick={() => {
+                setPage(num);
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
+              className={`w-9 h-9 md:w-10 md:h-10 flex items-center justify-center rounded-lg border text-sm md:text-base transition ${
+                num === page
+                  ? "bg-white text-black border-white"
+                  : "border-white/30 hover:bg-white hover:text-black"
+              }`}
+            >
+              {num}
+            </button>
+          )
+        )}
+
+        <button
+          onClick={() => {
+            setPage((prev) => Math.min(totalPages, prev + 1));
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }}
+          disabled={page === totalPages}
+          className="w-9 h-9 md:w-10 md:h-10 flex items-center justify-center rounded-lg border border-white/30 hover:bg-white hover:text-black transition disabled:opacity-30 disabled:pointer-events-none"
+        >
+          <ChevronRight size={18} />
+        </button>
+
+        <button
+          onClick={() => {
+            setPage(totalPages);
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }}
+          disabled={page === totalPages}
+          className="w-9 h-9 md:w-10 md:h-10 flex items-center justify-center rounded-lg border border-white/30 hover:bg-white hover:text-black transition disabled:opacity-30 disabled:pointer-events-none"
+        >
+          <ChevronsRight size={18} />
         </button>
       </div>
     </main>
