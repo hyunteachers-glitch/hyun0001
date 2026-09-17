@@ -5,7 +5,14 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
 import PasswordGuard from "../../components/PasswordGuard";
-import type { Webtoon, Episode, ImageItem } from "@/lib/types";
+import KeywordBadge from "../../components/KeywordBadge";
+import {
+  getKeywordsForWebtoon,
+  getOrCreateKeyword,
+  addKeywordToWebtoon,
+  removeKeywordFromWebtoon,
+} from "@/lib/queries";
+import type { Webtoon, Episode, ImageItem, Keyword } from "@/lib/types";
 
 type EditedEpisode = {
   title: string;
@@ -56,11 +63,16 @@ export default function WebtoonDetailPage() {
 
   const [deleteTargets, setDeleteTargets] = useState<number[]>([]);
 
+  const [webtoonKeywords, setWebtoonKeywords] = useState<Keyword[]>([]);
+  const [categoryEditorOpen, setCategoryEditorOpen] = useState(false);
+  const [newKeywordInput, setNewKeywordInput] = useState("");
+
   useEffect(() => {
     if (!webtoonId) return;
     getWebtoon();
     getEpisodes();
     getImages();
+    getWebtoonKeywords();
   }, [webtoonId]);
 
   useEffect(() => {
@@ -160,12 +172,46 @@ export default function WebtoonDetailPage() {
     setImages(data || []);
   }
 
+  async function getWebtoonKeywords() {
+    try {
+      const data = await getKeywordsForWebtoon(webtoonId);
+      setWebtoonKeywords(data);
+    } catch (error) {
+      console.error("getWebtoonKeywords error:", error);
+    }
+  }
+
+  async function handleAddKeyword() {
+    const trimmed = newKeywordInput.trim();
+    if (!trimmed) return;
+
+    try {
+      const keyword = await getOrCreateKeyword(trimmed);
+      await addKeywordToWebtoon(webtoonId, keyword.id);
+      setNewKeywordInput("");
+      getWebtoonKeywords();
+    } catch (error) {
+      alert(error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  async function handleRemoveKeyword(keywordId: number) {
+    try {
+      await removeKeywordFromWebtoon(webtoonId, keywordId);
+      getWebtoonKeywords();
+    } catch (error) {
+      alert(error instanceof Error ? error.message : String(error));
+    }
+  }
+
   function openInfoEdit() {
     if (!webtoon) return;
 
     setInfoEditMode(true);
     setThumbnailEditMode(false);
     setTitlePhotoEditMode(false);
+    setCategoryEditorOpen(false);
+    setNewKeywordInput("");
 
     setTitleInput(webtoon.title || "");
     setDescriptionInput(webtoon.description || "");
@@ -179,6 +225,8 @@ export default function WebtoonDetailPage() {
     setInfoEditMode(false);
     setThumbnailEditMode(false);
     setTitlePhotoEditMode(false);
+    setCategoryEditorOpen(false);
+    setNewKeywordInput("");
 
     setTitleInput(webtoon.title || "");
     setDescriptionInput(webtoon.description || "");
@@ -241,6 +289,8 @@ export default function WebtoonDetailPage() {
     setInfoEditMode(false);
     setThumbnailEditMode(false);
     setTitlePhotoEditMode(false);
+    setCategoryEditorOpen(false);
+    setNewKeywordInput("");
     getWebtoon();
   }
 
@@ -535,6 +585,59 @@ export default function WebtoonDetailPage() {
                 className="bg-black border border-white/25 rounded-2xl px-4 py-3 text-white outline-none min-h-[110px] resize-y"
                 placeholder="작품 설명"
               />
+
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={() => setCategoryEditorOpen(!categoryEditorOpen)}
+                  className={
+                    categoryEditorOpen
+                      ? "self-start border border-white px-4 py-2 rounded-full bg-white text-black transition text-sm"
+                      : "self-start border border-white/25 px-4 py-2 rounded-full hover:bg-white hover:text-black transition text-sm"
+                  }
+                >
+                  카테고리 추가
+                </button>
+
+                {categoryEditorOpen && (
+                  <div className="flex flex-col gap-3 border border-white/15 rounded-2xl p-4 bg-white/[0.02]">
+                    <div className="flex flex-wrap gap-2">
+                      {webtoonKeywords.length === 0 && (
+                        <p className="text-white/40 text-sm">아직 등록된 키워드가 없어.</p>
+                      )}
+
+                      {webtoonKeywords.map((keyword) => (
+                        <KeywordBadge
+                          key={keyword.id}
+                          keyword={keyword}
+                          onRemove={() => handleRemoveKeyword(keyword.id)}
+                        />
+                      ))}
+                    </div>
+
+                    <div className="flex gap-2">
+                      <input
+                        value={newKeywordInput}
+                        onChange={(e) => setNewKeywordInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            handleAddKeyword();
+                          }
+                        }}
+                        placeholder="키워드 입력 (예: 액션)"
+                        className="flex-1 bg-black border border-white/25 rounded-xl px-4 py-2 text-white outline-none text-sm"
+                      />
+
+                      <button
+                        onClick={handleAddKeyword}
+                        className="border border-white/25 px-4 py-2 rounded-xl hover:bg-white hover:text-black transition text-sm whitespace-nowrap"
+                      >
+                        추가
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
 
               {mainImageInput && (
                 <div>
