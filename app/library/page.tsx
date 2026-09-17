@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { Home, Plus, Pencil, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { Home, Plus, Pencil, Trash2, Hash, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 import PasswordGuard from "../components/PasswordGuard";
 import type { Webtoon, Episode, ImageItem } from "@/lib/types";
@@ -329,6 +329,15 @@ export default function LibraryPage() {
             className="p-2 rounded-full hover:bg-white hover:text-black transition"
           >
             <Home size={24} />
+          </Link>
+
+          <Link
+            href="/library/category"
+            aria-label="카테고리"
+            title="카테고리"
+            className="p-2 rounded-full hover:bg-white hover:text-black transition"
+          >
+            <Hash size={24} />
           </Link>
 
           <Link

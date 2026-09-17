@@ -29,3 +29,15 @@ export type ImageItem = {
   id: number;
   url: string;
 };
+
+export type Keyword = {
+  id: number;
+  name: string;
+  created_at: string | null;
+};
+
+export type WebtoonKeyword = {
+  webtoon_id: number;
+  keyword_id: number;
+  created_at: string | null;
+};
