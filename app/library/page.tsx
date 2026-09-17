@@ -4,15 +4,14 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { Home, Plus, Pencil, Trash2, Hash, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { Home, Plus, Trash2, Hash, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 import PasswordGuard from "../components/PasswordGuard";
-import type { Webtoon, Episode, ImageItem } from "@/lib/types";
+import type { Webtoon, Episode } from "@/lib/types";
 
 export default function LibraryPage() {
   const router = useRouter();
   const [webtoons, setWebtoons] = useState<Webtoon[]>([]);
-  const [images, setImages] = useState<ImageItem[]>([]);
   const [episodeCounts, setEpisodeCounts] = useState<Record<number, number>>({});
 
   const [search, setSearch] = useState("");
@@ -21,17 +20,9 @@ export default function LibraryPage() {
   const [totalWebtoonCount, setTotalWebtoonCount] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
 
-  const [editMode, setEditMode] = useState(false);
-  const [editingWebtoonId, setEditingWebtoonId] = useState<number | null>(null);
-  const [editTitle, setEditTitle] = useState("");
-  const [editDescription, setEditDescription] = useState("");
-  const [editCoverUrl, setEditCoverUrl] = useState("");
-
   const itemsPerPage = isMobile ? 28 : 60;
 
   useEffect(() => {
-    getImages();
-
     function checkMobile() {
       setIsMobile(window.innerWidth < 768);
     }
@@ -48,10 +39,6 @@ export default function LibraryPage() {
   useEffect(() => {
     setPage(1);
   }, [search, sortType, isMobile]);
-
-  function normalizeTitle(value: string) {
-    return value.trim().toLowerCase();
-  }
 
   async function getWebtoons() {
     const from = (page - 1) * itemsPerPage;
@@ -88,16 +75,6 @@ export default function LibraryPage() {
      }
   }
 
-  async function getImages() {
-    const { data, error } = await supabase
-      .from("images")
-      .select("*")
-      .order("id", { ascending: false });
-
-    if (error) return alert(error.message);
-    setImages(data || []);
-  }
-
   async function getEpisodeCounts(webtoonIds: number[]) {
     const { data, error } = await supabase
       .from("episodes")
@@ -118,58 +95,6 @@ export default function LibraryPage() {
     console.log("episodes raw:", data);
     console.log("counts:", counts);
     setEpisodeCounts(counts);
-  }
-
-  function startEditWebtoon(toon: Webtoon) {
-    setEditingWebtoonId(toon.id);
-    setEditTitle(toon.title);
-    setEditDescription(toon.description || "");
-    setEditCoverUrl(toon.cover_url || "");
-  }
-
-  async function completeEditWebtoon() {
-    if (!editingWebtoonId) return alert("수정할 작품을 선택해줘.");
-    if (!editTitle.trim()) return alert("제목을 입력해줘.");
-    if (!editCoverUrl) return alert("썸네일 사진을 선택해줘.");
-
-    const duplicate = webtoons.some(
-      (toon) =>
-        toon.id !== editingWebtoonId &&
-        normalizeTitle(toon.title) === normalizeTitle(editTitle)
-    );
-
-    if (duplicate) {
-      alert("이미 같은 제목의 작품이 있어.");
-      return;
-    }
-
-    const { error } = await supabase
-      .from("webtoons")
-      .update({
-        title: editTitle.trim(),
-        description: editDescription.trim(),
-        cover_url: editCoverUrl,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", editingWebtoonId);
-
-    if (error) return alert(error.message);
-
-    alert("작품 수정 완료!");
-    setEditMode(false);
-    setEditingWebtoonId(null);
-    setEditTitle("");
-    setEditDescription("");
-    setEditCoverUrl("");
-    getWebtoons();
-  }
-
-  function cancelEditWebtoon() {
-    setEditMode(false);
-    setEditingWebtoonId(null);
-    setEditTitle("");
-    setEditDescription("");
-    setEditCoverUrl("");
   }
 
   function getTime(toon: Webtoon) {
@@ -236,16 +161,9 @@ export default function LibraryPage() {
   }
 
   function Card({ toon }: { toon: Webtoon }) {
-    const selected = editingWebtoonId === toon.id;
-
-    const cardInner = (
+    return (
       <div
-        onClick={(e) => {
-          if (editMode) {
-            e.preventDefault();
-            startEditWebtoon(toon);
-          }
-        }}
+        onClick={() => router.push(`/library/${toon.id}`)}
         style={{
           position: "relative",
           width: cardWidth,
@@ -253,12 +171,10 @@ export default function LibraryPage() {
           minHeight: cardHeight,
           borderRadius: "14px",
           overflow: "hidden",
-          border: selected
-            ? "2px solid rgb(239,68,68)"
-            : "1px solid rgba(255,255,255,0.28)",
-          background: selected ? "rgba(239,68,68,0.12)" : "rgba(255,255,255,0.02)",
+          border: "1px solid rgba(255,255,255,0.28)",
+          background: "rgba(255,255,255,0.02)",
           color: "white",
-          cursor: editMode ? "pointer" : "default",
+          cursor: "pointer",
         }}
       >
         <div style={{ width: thumbnailSize, height: thumbnailSize, overflow: "hidden" }}>
@@ -285,23 +201,6 @@ export default function LibraryPage() {
 
         <EpisodeLabel toonId={toon.id} />
       </div>
-    );
-
-    if (editMode) return cardInner;
-
-    return (
-       <div
-       onClick={() => {
-         router.push(`/library/${toon.id}`);
-         }}
-         style={{
-          textDecoration: "none",
-          color: "white",
-          cursor: "pointer",
-          }}
-          >
-            {cardInner}
-          </div>
     );
   }
 
@@ -349,25 +248,6 @@ export default function LibraryPage() {
             <Plus size={24} />
           </Link>
 
-          <button
-            onClick={() => {
-              setEditMode(!editMode);
-              setEditingWebtoonId(null);
-              setEditTitle("");
-              setEditDescription("");
-              setEditCoverUrl("");
-            }}
-            aria-label="작품 수정"
-            title="작품 수정"
-            className={
-              editMode
-                ? "p-2 rounded-full bg-white text-black transition"
-                : "p-2 rounded-full hover:bg-white hover:text-black transition"
-            }
-          >
-            <Pencil size={24} />
-          </button>
-
           <Link
             href="/library/trash"
             aria-label="휴지통"
@@ -378,64 +258,6 @@ export default function LibraryPage() {
           </Link>
         </div>
       </div>
-
-      {editMode && (
-        <section className="mb-10 border border-white/15 rounded-3xl p-5 bg-white/[0.02]">
-          <h2 className="text-2xl font-bold mb-4">작품 수정</h2>
-
-          <div className="flex flex-col gap-3 max-w-[720px]">
-            <input
-              value={editTitle}
-              onChange={(e) => setEditTitle(e.target.value)}
-              placeholder="작품 제목"
-              className="border border-white/25 rounded-2xl px-4 py-3 bg-black text-white outline-none"
-            />
-
-            <textarea
-              value={editDescription}
-              onChange={(e) => setEditDescription(e.target.value)}
-              placeholder="작품 설명"
-              className="border border-white/25 rounded-2xl px-4 py-3 bg-black text-white outline-none min-h-[100px] resize-y"
-            />
-
-            {editCoverUrl && (
-              <img
-                src={editCoverUrl}
-                alt=""
-                className="w-[110px] h-[110px] object-cover rounded-xl border border-white/20"
-              />
-            )}
-
-            <div className="flex gap-3 flex-wrap">
-              <button onClick={completeEditWebtoon} className="border border-white px-5 py-3 rounded-full hover:bg-white hover:text-black transition">
-                완료
-              </button>
-
-              <button onClick={cancelEditWebtoon} className="border border-white/30 px-5 py-3 rounded-full hover:bg-white hover:text-black transition">
-                취소
-              </button>
-            </div>
-
-            <p className="text-white/45 text-sm">
-              수정할 작품을 먼저 클릭하고, 아래 갤러리에서 썸네일 사진을 선택해줘.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-3 md:grid-cols-10 gap-2 md:gap-3 mt-6">
-            {images.map((image) => (
-              <button
-                key={image.id}
-                onClick={() => setEditCoverUrl(image.url)}
-                className={`relative aspect-square overflow-hidden rounded-xl border ${
-                  editCoverUrl === image.url ? "border-red-500 border-2" : "border-white/15"
-                }`}
-              >
-                <img src={image.url} alt="" className="w-full h-full object-cover" />
-              </button>
-            ))}
-          </div>
-        </section>
-      )}
 
       <div className="mx-auto mb-2 md:mb-4" style={{ width: gridWidth, maxWidth: "100%" }}>
         <input
