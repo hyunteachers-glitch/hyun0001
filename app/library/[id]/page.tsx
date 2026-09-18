@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
 import PasswordGuard from "../../components/PasswordGuard";
@@ -25,10 +25,30 @@ const IMAGE_GRID_STEP_DESKTOP = 8;
 const IMAGE_GRID_STEP_MOBILE = 3;
 
 export default function WebtoonDetailPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-black text-white flex items-center justify-center">
+          loading...
+        </main>
+      }
+    >
+      <WebtoonDetailPageInner />
+    </Suspense>
+  );
+}
+
+function WebtoonDetailPageInner() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const webtoonId = Number(params.id);
-  
+
+  const fromParam = searchParams.get("from");
+  const isValidFrom = Boolean(fromParam && fromParam.startsWith("/library"));
+  const backHref = isValidFrom ? (fromParam as string) : "/library";
+  const backLabel = isValidFrom && fromParam!.startsWith("/library/category") ? "CATEGORY" : "LIBRARY";
+
 
   const [webtoon, setWebtoon] = useState<Webtoon | null>(null);
   const [episodes, setEpisodes] = useState<Episode[]>([]);
@@ -509,8 +529,8 @@ export default function WebtoonDetailPage() {
     <PasswordGuard>
     <main className="min-h-screen bg-black text-white px-4 md:px-8 py-6 md:py-8">
       <div className="mb-8 flex items-center justify-between gap-3">
-        <Link href="/library" className={backButtonClass}>
-          ← LIBRARY
+        <Link href={backHref} className={backButtonClass}>
+          ← {backLabel}
         </Link>
 
         {!infoEditMode ? (

@@ -1,26 +1,71 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Home, Plus, Trash2, Hash, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 import PasswordGuard from "../components/PasswordGuard";
 import type { Webtoon, Episode } from "@/lib/types";
 
+const SEARCH_DEBOUNCE_MS = 300;
+
 export default function LibraryPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-black text-white flex items-center justify-center">
+          loading...
+        </main>
+      }
+    >
+      <LibraryPageInner />
+    </Suspense>
+  );
+}
+
+function LibraryPageInner() {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
   const [webtoons, setWebtoons] = useState<Webtoon[]>([]);
   const [episodeCounts, setEpisodeCounts] = useState<Record<number, number>>({});
 
-  const [search, setSearch] = useState("");
-  const [sortType, setSortType] = useState<"latest" | "abc">("latest");
-  const [page, setPage] = useState(1);
   const [totalWebtoonCount, setTotalWebtoonCount] = useState(0);
-  const [isMobile, setIsMobile] = useState(false);
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== "undefined" && window.innerWidth < 768
+  );
 
   const itemsPerPage = isMobile ? 28 : 60;
+
+  const pageParam = Number(searchParams.get("page"));
+  const page = Number.isInteger(pageParam) && pageParam > 0 ? pageParam : 1;
+  const urlSearch = searchParams.get("q") || "";
+  const sortType: "latest" | "abc" = searchParams.get("sort") === "abc" ? "abc" : "latest";
+
+  const [searchInput, setSearchInput] = useState(urlSearch);
+
+  function navigate(overrides: { page?: number; sort?: "latest" | "abc"; q?: string }) {
+    const params = new URLSearchParams(searchParams.toString());
+
+    const nextPage = overrides.page ?? page;
+    const nextSort = overrides.sort ?? sortType;
+    const nextQ = overrides.q ?? urlSearch;
+
+    if (nextPage > 1) params.set("page", String(nextPage));
+    else params.delete("page");
+
+    if (nextSort === "abc") params.set("sort", "abc");
+    else params.delete("sort");
+
+    if (nextQ.trim()) params.set("q", nextQ);
+    else params.delete("q");
+
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  }
 
   useEffect(() => {
     function checkMobile() {
@@ -32,13 +77,47 @@ export default function LibraryPage() {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  useEffect(() => {
-    getWebtoons();
-    }, [page, itemsPerPage, search, sortType]);
+  const prevIsMobile = useRef(isMobile);
 
   useEffect(() => {
-    setPage(1);
-  }, [search, sortType, isMobile]);
+    if (prevIsMobile.current === isMobile) return;
+    prevIsMobile.current = isMobile;
+
+    if (page !== 1) {
+      navigate({ page: 1 });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMobile]);
+
+  useEffect(() => {
+    setSearchInput(urlSearch);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlSearch]);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (searchInput.trim() === urlSearch.trim()) return;
+      navigate({ q: searchInput, page: 1 });
+    }, SEARCH_DEBOUNCE_MS);
+
+    return () => clearTimeout(timeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchInput]);
+
+  useEffect(() => {
+    getWebtoons();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, itemsPerPage, urlSearch, sortType]);
+
+  useEffect(() => {
+    if (totalWebtoonCount === 0) return;
+
+    const totalPages = Math.max(1, Math.ceil(totalWebtoonCount / itemsPerPage));
+    if (page > totalPages) {
+      navigate({ page: totalPages });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [totalWebtoonCount, itemsPerPage, page]);
 
   async function getWebtoons() {
     const from = (page - 1) * itemsPerPage;
@@ -49,8 +128,8 @@ export default function LibraryPage() {
     .select("*", { count: "exact" })
     .eq("deleted", false);
 
-     if (search.trim()) {
-      query = query.ilike("title", `%${search.trim()}%`);
+     if (urlSearch.trim()) {
+      query = query.ilike("title", `%${urlSearch.trim()}%`);
      }
 
      if (sortType === "abc") {
@@ -65,7 +144,7 @@ export default function LibraryPage() {
 
     setWebtoons(data || []);
     setTotalWebtoonCount(count || 0);
-    
+
     const ids = (data || []).map((toon) => Number(toon.id));
 
      if (ids.length === 0) {
@@ -125,7 +204,7 @@ export default function LibraryPage() {
 
 
 
-  
+
 
   const cardWidth = isMobile ? 88 : 190;
   const thumbnailSize = isMobile ? 88 : 190;
@@ -141,6 +220,12 @@ export default function LibraryPage() {
   };
 
   const gridWidth = gridColumns * cardWidth + (gridColumns - 1) * gridGap;
+
+  function goToDetail(id: number) {
+    const qs = searchParams.toString();
+    const from = encodeURIComponent(qs ? `${pathname}?${qs}` : pathname);
+    router.push(`/library/${id}?from=${from}`);
+  }
 
   function EpisodeLabel({ toonId }: { toonId: number }) {
     const count = episodeCounts[toonId] || 0;
@@ -163,7 +248,7 @@ export default function LibraryPage() {
   function Card({ toon }: { toon: Webtoon }) {
     return (
       <div
-        onClick={() => router.push(`/library/${toon.id}`)}
+        onClick={() => goToDetail(toon.id)}
         style={{
           position: "relative",
           width: cardWidth,
@@ -263,8 +348,8 @@ export default function LibraryPage() {
         <input
           type="text"
           placeholder="작품 검색"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
           className="w-full"
           style={{
             border: "1px solid rgba(255,255,255,0.25)",
@@ -284,7 +369,7 @@ export default function LibraryPage() {
         style={{ width: gridWidth, maxWidth: "100%" }}
       >
         <button
-          onClick={() => setSortType("abc")}
+          onClick={() => navigate({ sort: "abc", page: 1 })}
           className={sortType === "abc" ? "text-white" : "text-white/40 hover:text-white/70 transition"}
         >
           가나다순
@@ -293,7 +378,7 @@ export default function LibraryPage() {
         <span className="text-white/20">|</span>
 
         <button
-          onClick={() => setSortType("latest")}
+          onClick={() => navigate({ sort: "latest", page: 1 })}
           className={sortType === "latest" ? "text-white" : "text-white/40 hover:text-white/70 transition"}
         >
           최신순
@@ -311,7 +396,7 @@ export default function LibraryPage() {
       <div className="mt-12 flex justify-center items-center gap-2">
         <button
           onClick={() => {
-            setPage(1);
+            navigate({ page: 1 });
             window.scrollTo({ top: 0, behavior: "smooth" });
           }}
           disabled={page === 1}
@@ -322,7 +407,7 @@ export default function LibraryPage() {
 
         <button
           onClick={() => {
-            setPage((prev) => Math.max(1, prev - 1));
+            navigate({ page: Math.max(1, page - 1) });
             window.scrollTo({ top: 0, behavior: "smooth" });
           }}
           disabled={page === 1}
@@ -341,7 +426,7 @@ export default function LibraryPage() {
             <button
               key={num}
               onClick={() => {
-                setPage(num);
+                navigate({ page: num });
                 window.scrollTo({ top: 0, behavior: "smooth" });
               }}
               className={`w-9 h-9 md:w-10 md:h-10 flex items-center justify-center rounded-lg border text-sm md:text-base transition ${
@@ -357,7 +442,7 @@ export default function LibraryPage() {
 
         <button
           onClick={() => {
-            setPage((prev) => Math.min(totalPages, prev + 1));
+            navigate({ page: Math.min(totalPages, page + 1) });
             window.scrollTo({ top: 0, behavior: "smooth" });
           }}
           disabled={page === totalPages}
@@ -368,7 +453,7 @@ export default function LibraryPage() {
 
         <button
           onClick={() => {
-            setPage(totalPages);
+            navigate({ page: totalPages });
             window.scrollTo({ top: 0, behavior: "smooth" });
           }}
           disabled={page === totalPages}

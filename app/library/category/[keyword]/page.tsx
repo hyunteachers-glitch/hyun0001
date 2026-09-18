@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import PasswordGuard from "../../../components/PasswordGuard";
@@ -12,6 +12,7 @@ import type { Keyword, Webtoon, Episode } from "@/lib/types";
 export default function CategoryKeywordPage() {
   const params = useParams();
   const router = useRouter();
+  const pathname = usePathname();
   const rawKeyword = Array.isArray(params.keyword) ? params.keyword[0] : params.keyword;
   const keywordName = decodeURIComponent(rawKeyword || "");
 
@@ -95,6 +96,11 @@ export default function CategoryKeywordPage() {
     gap: `${gridGap}px`,
   };
 
+  function goToDetail(id: number) {
+    const from = encodeURIComponent(pathname);
+    router.push(`/library/${id}?from=${from}`);
+  }
+
   function EpisodeLabel({ toonId }: { toonId: number }) {
     const count = episodeCounts[toonId] || 0;
 
@@ -116,7 +122,7 @@ export default function CategoryKeywordPage() {
   function Card({ toon }: { toon: Webtoon }) {
     return (
       <div
-        onClick={() => router.push(`/library/${toon.id}`)}
+        onClick={() => goToDetail(toon.id)}
         style={{
           position: "relative",
           width: cardWidth,
