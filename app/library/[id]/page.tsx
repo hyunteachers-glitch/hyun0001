@@ -1,12 +1,13 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 import PasswordGuard from "../../components/PasswordGuard";
 import KeywordBadge from "../../components/KeywordBadge";
+import { compareKeywords } from "@/lib/keywordSort";
 import {
   getKeywordsForWebtoon,
   getOrCreateKeyword,
@@ -67,6 +68,7 @@ export default function WebtoonDetailPage() {
 function WebtoonDetailPageInner() {
   const params = useParams();
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const webtoonId = Number(params.id);
 
@@ -182,7 +184,7 @@ function WebtoonDetailPageInner() {
   }, [episodes, episodeSortOrder]);
 
   const sortedWebtoonKeywords = useMemo(() => {
-    return [...webtoonKeywords].sort((a, b) => a.name.localeCompare(b.name, "ko"));
+    return [...webtoonKeywords].sort(compareKeywords);
   }, [webtoonKeywords]);
 
   async function touchWebtoon() {
@@ -738,7 +740,7 @@ function WebtoonDetailPageInner() {
             sortedWebtoonKeywords.length > 0 && (
               <div className="flex flex-wrap items-center gap-1.5 mt-4">
                 {sortedWebtoonKeywords.map((keyword) => (
-                  <KeywordBadge key={keyword.id} keyword={keyword} />
+                  <KeywordBadge key={keyword.id} keyword={keyword} from={pathname} />
                 ))}
               </div>
             )

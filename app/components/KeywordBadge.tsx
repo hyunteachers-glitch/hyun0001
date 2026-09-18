@@ -8,6 +8,7 @@ type KeywordBadgeProps = {
   keyword: Keyword;
   onRemove?: () => void;
   className?: string;
+  from?: string;
 };
 
 const badgeClass =
@@ -15,7 +16,7 @@ const badgeClass =
 
 const readOnlyClass = "leading-relaxed text-white/50 hover:text-white/80 transition";
 
-export default function KeywordBadge({ keyword, onRemove, className }: KeywordBadgeProps) {
+export default function KeywordBadge({ keyword, onRemove, className, from }: KeywordBadgeProps) {
   if (onRemove) {
     return (
       <span className={`${badgeClass} text-white`}>
@@ -31,11 +32,12 @@ export default function KeywordBadge({ keyword, onRemove, className }: KeywordBa
     );
   }
 
+  const href = from
+    ? `/library/category/${encodeURIComponent(keyword.name)}?from=${encodeURIComponent(from)}`
+    : `/library/category/${encodeURIComponent(keyword.name)}`;
+
   return (
-    <Link
-      href={`/library/category/${encodeURIComponent(keyword.name)}`}
-      className={className ?? readOnlyClass}
-    >
+    <Link href={href} className={className ?? readOnlyClass}>
       #{keyword.name}
     </Link>
   );

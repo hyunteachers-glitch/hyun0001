@@ -1,20 +1,42 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useParams, usePathname, useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import PasswordGuard from "../../../components/PasswordGuard";
 import { supabase } from "@/lib/supabase/client";
 import { getKeywordByName, getWebtoonsByKeyword } from "@/lib/queries";
 import type { Keyword, Webtoon, Episode } from "@/lib/types";
 
+const backButtonClass =
+  "px-4 py-2 rounded-full hover:bg-white hover:text-black transition whitespace-nowrap text-sm md:text-base";
+
 export default function CategoryKeywordPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-black text-white flex items-center justify-center">
+          loading...
+        </main>
+      }
+    >
+      <CategoryKeywordPageInner />
+    </Suspense>
+  );
+}
+
+function CategoryKeywordPageInner() {
   const params = useParams();
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const rawKeyword = Array.isArray(params.keyword) ? params.keyword[0] : params.keyword;
   const keywordName = decodeURIComponent(rawKeyword || "");
+
+  const fromParam = searchParams.get("from");
+  const isValidFrom = Boolean(fromParam && fromParam.startsWith("/library"));
+  const backHref = isValidFrom ? (fromParam as string) : "/library/category";
+  const backLabel = isValidFrom && fromParam !== "/library/category" ? "BACK" : "CATEGORY";
 
   const [keyword, setKeyword] = useState<Keyword | null>(null);
   const [webtoons, setWebtoons] = useState<Webtoon[]>([]);
@@ -167,13 +189,8 @@ export default function CategoryKeywordPage() {
     <PasswordGuard>
       <main className="min-h-screen bg-black text-white px-5 md:px-8 py-10 flex flex-col">
         <div className="mb-8">
-          <Link
-            href="/library/category"
-            aria-label="카테고리로 돌아가기"
-            title="카테고리로 돌아가기"
-            className="p-2 rounded-full hover:bg-white hover:text-black transition inline-flex"
-          >
-            <ArrowLeft size={24} />
+          <Link href={backHref} className={backButtonClass}>
+            ← {backLabel}
           </Link>
         </div>
 
