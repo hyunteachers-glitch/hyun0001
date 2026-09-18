@@ -114,3 +114,29 @@ export async function deleteKeyword(keywordId: number): Promise<void> {
 
   if (error) throw error;
 }
+
+export async function getActiveWorkCountForKeyword(keywordId: number): Promise<number> {
+  const { count, error } = await supabase
+    .from("webtoon_keywords")
+    .select("webtoon_id, webtoons!inner(deleted)", { count: "exact", head: true })
+    .eq("keyword_id", keywordId)
+    .eq("webtoons.deleted", false);
+
+  if (error) throw error;
+
+  return count ?? 0;
+}
+
+export async function deleteKeywordIfEmpty(keywordId: number): Promise<void> {
+  const activeCount = await getActiveWorkCountForKeyword(keywordId);
+  if (activeCount > 0) return;
+
+  const { error: linksError } = await supabase
+    .from("webtoon_keywords")
+    .delete()
+    .eq("keyword_id", keywordId);
+
+  if (linksError) throw linksError;
+
+  await deleteKeyword(keywordId);
+}

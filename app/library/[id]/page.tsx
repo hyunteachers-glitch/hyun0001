@@ -13,6 +13,7 @@ import {
   getOrCreateKeyword,
   addKeywordToWebtoon,
   removeKeywordFromWebtoon,
+  deleteKeywordIfEmpty,
 } from "@/lib/queries";
 import type { Webtoon, Episode, ImageItem, Keyword } from "@/lib/types";
 
@@ -280,6 +281,13 @@ function WebtoonDetailPageInner() {
       getWebtoonKeywords();
     } catch (error) {
       alert(getErrorMessage(error, "키워드 제거에 실패했어, 다시 시도해줘."));
+      return;
+    }
+
+    try {
+      await deleteKeywordIfEmpty(keywordId);
+    } catch (error) {
+      console.error("deleteKeywordIfEmpty error:", error);
     }
   }
 
@@ -394,6 +402,10 @@ function WebtoonDetailPageInner() {
       alert(error.message);
       return;
     }
+
+    await Promise.allSettled(
+      webtoonKeywords.map((keyword) => deleteKeywordIfEmpty(keyword.id))
+    );
 
     router.push("/library");
   }

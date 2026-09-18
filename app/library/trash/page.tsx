@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 import PasswordGuard from "../../components/PasswordGuard";
+import { deleteKeywordIfEmpty } from "@/lib/queries";
 import type { Webtoon } from "@/lib/types";
 
 export default function LibraryTrashPage() {
@@ -48,6 +49,18 @@ export default function LibraryTrashPage() {
   async function permanentDeleteWebtoon(id: number) {
     const ok = confirm("정말 영구 삭제할까?");
     if (!ok) return;
+
+    const { data: keywordLinks, error: keywordLinksFetchError } = await supabase
+      .from("webtoon_keywords")
+      .select("keyword_id")
+      .eq("webtoon_id", id);
+
+    if (keywordLinksFetchError) {
+      alert("키워드 정보를 불러오는 데 실패했어, 다시 시도해줘.");
+      return;
+    }
+
+    const keywordIds = (keywordLinks || []).map((row) => row.keyword_id);
 
     const { data: episodes, error: episodesFetchError } = await supabase
       .from("episodes")
@@ -93,6 +106,16 @@ export default function LibraryTrashPage() {
       return;
     }
 
+    const { error: webtoonKeywordsError } = await supabase
+      .from("webtoon_keywords")
+      .delete()
+      .eq("webtoon_id", id);
+
+    if (webtoonKeywordsError) {
+      alert("키워드 연결 삭제에 실패했어, 다시 시도해줘.");
+      return;
+    }
+
     const { error: webtoonDeleteError } = await supabase
       .from("webtoons")
       .delete()
@@ -102,6 +125,8 @@ export default function LibraryTrashPage() {
       alert("작품 삭제에 실패했어, 다시 시도해줘.");
       return;
     }
+
+    await Promise.allSettled(keywordIds.map((keywordId) => deleteKeywordIfEmpty(keywordId)));
 
     getTrashWebtoons();
   }
