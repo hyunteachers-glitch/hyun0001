@@ -316,7 +316,9 @@ function LibraryPageInner() {
           </Link>
 
           <Link
-            href="/library/category"
+            href={`/library/category?from=${encodeURIComponent(
+              searchParams.toString() ? `${pathname}?${searchParams.toString()}` : pathname
+            )}`}
             aria-label="카테고리"
             title="카테고리"
             className="p-2 rounded-full hover:bg-white hover:text-black transition"
