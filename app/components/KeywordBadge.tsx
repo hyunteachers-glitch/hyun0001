@@ -12,6 +12,8 @@ type KeywordBadgeProps = {
 const badgeClass =
   "inline-flex items-center gap-1.5 border border-white/25 rounded-full px-4 py-2 text-sm md:text-base transition";
 
+const readOnlyClass = "leading-relaxed text-white/50 hover:text-white/80 transition";
+
 export default function KeywordBadge({ keyword, onRemove }: KeywordBadgeProps) {
   if (onRemove) {
     return (
@@ -31,7 +33,7 @@ export default function KeywordBadge({ keyword, onRemove }: KeywordBadgeProps) {
   return (
     <Link
       href={`/library/category/${encodeURIComponent(keyword.name)}`}
-      className={`${badgeClass} hover:bg-white hover:text-black`}
+      className={readOnlyClass}
     >
       #{keyword.name}
     </Link>
