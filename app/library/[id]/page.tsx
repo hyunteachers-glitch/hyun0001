@@ -854,6 +854,10 @@ function WebtoonDetailPageInner() {
           </div>
 
           <div className="ml-auto flex items-center gap-2 flex-wrap justify-end">
+            <div className="text-white/50 text-sm">
+              총 {episodes.length}화
+            </div>
+
             {!episodeEditMode && (
               <button
                 onClick={() =>
@@ -907,10 +911,6 @@ function WebtoonDetailPageInner() {
                 </button>
               </>
             )}
-
-            <div className="text-white/50 text-sm ml-1">
-              총 {episodes.length}화
-            </div>
           </div>
         </div>
 
@@ -1009,8 +1009,9 @@ const iconButtonClass =
 const episodeButtonClass =
   "border border-white/20 px-4 py-2 rounded-xl hover:bg-white hover:text-black transition whitespace-nowrap";
 
+// -mr-4: 테두리 없는 버튼이라 오른쪽 패딩만큼 당겨서 글자 끝을 카드 목록 우측선에 맞춤
 const episodeSortButtonClass =
-  "px-4 py-2 rounded-xl hover:bg-white hover:text-black transition whitespace-nowrap";
+  "-mr-4 px-4 py-2 rounded-xl hover:bg-white hover:text-black transition whitespace-nowrap";
 
 const episodeActiveButtonClass =
   "border border-white px-4 py-2 rounded-xl bg-white text-black transition whitespace-nowrap";
