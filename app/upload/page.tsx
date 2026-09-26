@@ -48,8 +48,6 @@ export default function UploadPage() {
 
   const [selectedImages, setSelectedImages] = useState<string[]>([]);
   const [deleteTargets, setDeleteTargets] = useState<number[]>([]);
-  const [rangeMode, setRangeMode] = useState(false);
-  const [rangeStartId, setRangeStartId] = useState<number | null>(null);
 
   // long-press 감지용 — 리렌더가 필요 없는 값이라 상태 대신 ref로만 처리
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -61,6 +59,8 @@ export default function UploadPage() {
   const dragStartIdRef = useRef<number | null>(null);
   const lastDragImageIdRef = useRef<number | null>(null);
   const dragCleanupRef = useRef<(() => void) | null>(null);
+  // 이번 드래그가 delete 모드(deleteTargets)용인지 episode 모드(selectedImages)용인지
+  const dragKindRef = useRef<"delete" | "episode" | null>(null);
 
   // 가장자리 자동 스크롤용 — 마지막 포인터 좌표 + 현재 스크롤 속도/프레임 핸들
   const lastPointerClientXRef = useRef(0);
@@ -92,10 +92,6 @@ export default function UploadPage() {
     setCoverUrl("");
     setMainImageUrl("");
     setSelectMode("none");
-    // episode 모드에서 범위선택을 켠 채로 work 모드를 거쳐 gallery로 돌아오면
-    // rangeMode가 true로 남아있던 leak을 막기 위해 여기서도 초기화
-    setRangeMode(false);
-    setRangeStartId(null);
   }
 
   function resetEpisode() {
@@ -104,8 +100,6 @@ export default function UploadPage() {
     setWebtoonSearch("");
     setShowWebtoonList(false);
     setSelectedImages([]);
-    setRangeMode(false);
-    setRangeStartId(null);
     setEpisodePreviewMode(false);
     setEpisodePreviewImages([]);
     setEditingOrderIndex(null);
@@ -114,8 +108,6 @@ export default function UploadPage() {
 
   function resetDelete() {
     setDeleteTargets([]);
-    setRangeMode(false);
-    setRangeStartId(null);
   }
 
   function normalizeTitle(value: string) {
@@ -314,19 +306,6 @@ export default function UploadPage() {
   }
 
   function toggleEpisodeImage(item: ImageItem) {
-    if (rangeMode) {
-      if (rangeStartId === null) {
-        setRangeStartId(item.id);
-        setSelectedImages([item.url]);
-        return;
-      }
-
-      const rangeItems = getRangeItems(rangeStartId, item.id);
-      setSelectedImages(rangeItems.map((image) => image.url));
-      setRangeStartId(null);
-      return;
-    }
-
     if (selectedImages.includes(item.url)) {
       setSelectedImages(selectedImages.filter((url) => url !== item.url));
     } else {
@@ -334,20 +313,15 @@ export default function UploadPage() {
     }
   }
 
+  // 롱프레스로 드래그 다중선택을 시작할 때만 사용 — 이미 선택돼 있으면 그대로 두고
+  // (토글하지 않음) 없을 때만 추가한다. episode 모드는 이미 몇 장 선택된 상태에서
+  // 롱프레스를 시작할 수 있어서, 토글을 쓰면 "이미 선택된 사진을 롱프레스했더니
+  // 해제되며 드래그가 시작"되는 어색한 상황이 생길 수 있어 별도로 분리함.
+  function ensureEpisodeSelected(item: ImageItem) {
+    setSelectedImages((prev) => (prev.includes(item.url) ? prev : [...prev, item.url]));
+  }
+
   function toggleDeleteImage(item: ImageItem) {
-    if (rangeMode) {
-      if (rangeStartId === null) {
-        setRangeStartId(item.id);
-        setDeleteTargets([item.id]);
-        return;
-      }
-
-      const rangeItems = getRangeItems(rangeStartId, item.id);
-      setDeleteTargets(rangeItems.map((image) => image.id));
-      setRangeStartId(null);
-      return;
-    }
-
     if (deleteTargets.includes(item.id)) {
       setDeleteTargets(deleteTargets.filter((id) => id !== item.id));
     } else {
@@ -365,7 +339,7 @@ export default function UploadPage() {
   // clientX/clientY(뷰포트 좌표)는 스크롤 여부와 무관하게 "지금 그 자리에 보이는 카드"를
   // 항상 정확히 가리키므로, pointermove든 자동 스크롤 중이든 이 함수 하나로 재탐지한다.
   function updateDragSelectionAtPoint(clientX: number, clientY: number) {
-    if (!dragSelectingRef.current || dragStartIdRef.current === null) return;
+    if (!dragSelectingRef.current || dragStartIdRef.current === null || !dragKindRef.current) return;
 
     const hit = document.elementFromPoint(clientX, clientY);
     const card = hit?.closest("[data-image-id]");
@@ -376,11 +350,15 @@ export default function UploadPage() {
 
     lastDragImageIdRef.current = id;
 
-    // rangeMode(범위선택)가 쓰는 것과 동일한 "순서 범위" 로직 재사용 —
-    // 시작 카드 ~ 지금 커서 아래 카드 사이에 낀 행이 전부 포함됨.
+    // 시작 카드 ~ 지금 커서 아래 카드 사이에 낀 행이 전부 포함되는 "순서 범위" 로직.
     // add-only가 아니라 매번 통째로 교체 — 커서가 뒤로 가면 범위도 자연스럽게 줄어듦.
     const rangeItems = getRangeItems(dragStartIdRef.current, id);
-    setDeleteTargets(rangeItems.map((image) => image.id));
+
+    if (dragKindRef.current === "delete") {
+      setDeleteTargets(rangeItems.map((image) => image.id));
+    } else {
+      setSelectedImages(rangeItems.map((image) => image.url));
+    }
   }
 
   // 가장자리로부터 얼마나 깊이 들어왔는지에 비례한 스크롤 속도. 0이면 자동 스크롤 없음.
@@ -446,6 +424,7 @@ export default function UploadPage() {
 
   function endDragSelect() {
     dragSelectingRef.current = false;
+    dragKindRef.current = null;
     dragStartIdRef.current = null;
     lastDragImageIdRef.current = null;
     stopAutoScroll();
@@ -461,10 +440,9 @@ export default function UploadPage() {
     dragCleanupRef.current = null;
   }
 
-  function beginDragSelect(startId: number) {
-    if (rangeMode) return; // 범위선택 모드와는 동시에 동작시키지 않음 (기존 rangeMode 로직 보호)
-
+  function beginDragSelect(startId: number, kind: "delete" | "episode") {
     dragSelectingRef.current = true;
+    dragKindRef.current = kind;
     dragStartIdRef.current = startId;
     lastDragImageIdRef.current = startId;
 
@@ -481,19 +459,27 @@ export default function UploadPage() {
     dragCleanupRef.current = endDragSelect;
   }
 
-  // gallery 모드에서만 동작. 포인터를 누르고 있다가 LONG_PRESS_MS를 넘기면
-  // delete 모드로 전환 + 그 사진을 바로 선택 상태로 만들고, 드래그 다중선택을 시작한다.
+  // gallery 모드에서 롱프레스하면 delete 모드로 전환하면서 드래그 다중선택을 시작하고,
+  // episode 모드에서 롱프레스하면 모드 전환 없이 그 안에서 바로 드래그 다중선택을 시작한다.
   function startLongPress(item: ImageItem) {
-    if (mode !== "gallery") return;
+    if (mode !== "gallery" && mode !== "episode") return;
+
+    const kind: "delete" | "episode" = mode === "gallery" ? "delete" : "episode";
 
     clearLongPressTimer();
     longPressFiredRef.current = false;
 
     longPressTimerRef.current = setTimeout(() => {
       longPressFiredRef.current = true;
-      setMode("delete");
-      toggleDeleteImage(item);
-      beginDragSelect(item.id);
+
+      if (kind === "delete") {
+        setMode("delete");
+        toggleDeleteImage(item);
+      } else {
+        ensureEpisodeSelected(item);
+      }
+
+      beginDragSelect(item.id, kind);
     }, LONG_PRESS_MS);
   }
 
@@ -1002,21 +988,11 @@ export default function UploadPage() {
             <button onClick={openEpisodePreview} className={buttonClass}>
               에피소드 만들기
             </button>
-
-            <button
-              onClick={() => {
-                setRangeMode(!rangeMode);
-                setRangeStartId(null);
-              }}
-              className={rangeMode ? activeButtonClass : buttonClass}
-            >
-              {rangeMode ? "범위선택 중" : "범위선택"}
-            </button>
           </div>
         </div>
       )}
 
-      {/* delete 모드 전용 범위선택 UI 제거 — episode 모드의 범위선택은 그대로 유지 */}
+      {/* 범위선택 버튼(episode/delete 둘 다) 제거 — 롱프레스+드래그로 대체 */}
 
       <div ref={gridRef} className="grid grid-cols-3 md:grid-cols-10 gap-px bg-black">
         {images.map((item) => {
@@ -1026,7 +1002,6 @@ export default function UploadPage() {
           const deleteOrder = deleteTargets.indexOf(item.id) + 1;
           const isThumbnail = coverUrl === item.url;
           const isMain = mainImageUrl === item.url;
-          const isRangeStart = rangeStartId === item.id;
 
           let badgeText = "";
           if (isThumbnail && isMain) badgeText = "썸네일 · 메인";
@@ -1045,7 +1020,7 @@ export default function UploadPage() {
               onContextMenu={(e) => e.preventDefault()}
               onDragStart={(e) => e.preventDefault()}
               className={`relative aspect-square overflow-hidden select-none ${
-                selected || deleteSelected || isThumbnail || isMain || isRangeStart
+                selected || deleteSelected || isThumbnail || isMain
                   ? "ring-2 ring-inset ring-red-500"
                   : ""
               }`}
@@ -1070,12 +1045,6 @@ export default function UploadPage() {
               {deleteSelected && mode === "delete" && (
                 <div className="absolute top-1 right-1 w-7 h-7 bg-red-500 text-white flex items-center justify-center font-bold">
                   {deleteOrder}
-                </div>
-              )}
-
-              {isRangeStart && rangeMode && (
-                <div className="absolute left-1 top-1 bg-white text-black text-[10px] font-bold px-2 py-1 rounded-md">
-                  시작
                 </div>
               )}
 
