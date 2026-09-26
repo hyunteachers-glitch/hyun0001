@@ -853,7 +853,7 @@ function WebtoonDetailPageInner() {
             )}
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap justify-end">
+          <div className="ml-auto flex items-center gap-2 flex-wrap justify-end">
             {!episodeEditMode && (
               <button
                 onClick={() =>
