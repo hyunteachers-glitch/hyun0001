@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { Upload, BookPlus, ListVideo } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 import PasswordGuard from "../components/PasswordGuard";
 import type { ImageItem, Webtoon } from "@/lib/types";
@@ -826,13 +827,13 @@ export default function UploadPage() {
     <PasswordGuard>
     <main className="min-h-screen bg-black text-white px-4 md:px-8 py-8">
       <div className="flex flex-col gap-6 mb-8">
-        <div className="flex gap-3 flex-wrap">
-          <Link href="/library" className={buttonClass}>
-            LIBRARY
+        <div className="flex items-center gap-3 flex-wrap">
+          <Link href="/library" className={backButtonClass}>
+            ← LIBRARY
           </Link>
 
-          <label className={buttonClass}>
-            갤러리 추가
+          <label aria-label="갤러리 추가" title="갤러리 추가" className={iconButtonClass}>
+            <Upload size={24} />
             <input type="file" multiple onChange={handleUpload} className="hidden" />
           </label>
 
@@ -846,9 +847,11 @@ export default function UploadPage() {
                 setMode("work");
               }
             }}
-            className={mode === "work" ? activeButtonClass : buttonClass}
+            aria-label="작품 생성"
+            title="작품 생성"
+            className={mode === "work" ? activeIconButtonClass : iconButtonClass}
           >
-            작품 생성
+            <BookPlus size={24} />
           </button>
 
           <button
@@ -861,9 +864,11 @@ export default function UploadPage() {
                 setMode("episode");
               }
             }}
-            className={mode === "episode" ? activeButtonClass : buttonClass}
+            aria-label="에피소드 생성"
+            title="에피소드 생성"
+            className={mode === "episode" ? activeIconButtonClass : iconButtonClass}
           >
-            에피소드 생성
+            <ListVideo size={24} />
           </button>
 
         </div>
@@ -1181,6 +1186,15 @@ const buttonClass =
 
 const activeButtonClass =
   "border border-white px-5 py-3 rounded-full bg-white text-black cursor-pointer text-base transition";
+
+const backButtonClass =
+  "px-4 py-2 rounded-full hover:bg-white hover:text-black transition whitespace-nowrap text-sm md:text-base";
+
+const iconButtonClass =
+  "p-2 rounded-full hover:bg-white hover:text-black transition";
+
+const activeIconButtonClass =
+  "p-2 rounded-full bg-white text-black transition";
 
 const deleteActiveClass =
   "border border-red-500 px-5 py-3 rounded-full bg-red-500 text-white cursor-pointer text-base transition";
