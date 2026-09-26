@@ -17,7 +17,7 @@ type FailedUpload = {
 };
 
 const IMAGE_LIMIT = 100;
-const LONG_PRESS_MS = 500;
+const LONG_PRESS_MS = 400;
 
 export default function UploadPage() {
   const [images, setImages] = useState<ImageItem[]>([]);
@@ -53,6 +53,12 @@ export default function UploadPage() {
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressFiredRef = useRef(false);
 
+  // 드래그 다중선택용 (삼성 갤러리 방식) — 그리드 컨테이너 참조 + 드래그 상태 추적
+  const gridRef = useRef<HTMLDivElement>(null);
+  const dragSelectingRef = useRef(false);
+  const lastDragImageIdRef = useRef<number | null>(null);
+  const dragCleanupRef = useRef<(() => void) | null>(null);
+
   const [episodePreviewMode, setEpisodePreviewMode] = useState(false);
   const [episodePreviewImages, setEpisodePreviewImages] = useState<string[]>([]);
   const [editingOrderIndex, setEditingOrderIndex] = useState<number | null>(null);
@@ -61,6 +67,14 @@ export default function UploadPage() {
   useEffect(() => {
     getImages(true);
     getWebtoons();
+  }, []);
+
+  // 드래그 선택 도중 페이지를 벗어나는 등 드문 경우에도 document 리스너가 안 남게 정리
+  useEffect(() => {
+    return () => {
+      dragCleanupRef.current?.();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function resetWork() {
@@ -320,8 +334,68 @@ export default function UploadPage() {
     }
   }
 
+  // 드래그 중 토글이 아니라 "없으면 추가만" — 지나간 카드가 깜빡깜빡 해제되지 않게
+  function addDeleteTarget(item: ImageItem) {
+    setDeleteTargets((prev) => (prev.includes(item.id) ? prev : [...prev, item.id]));
+  }
+
+  function handleDragPointerMove(event: PointerEvent) {
+    if (!dragSelectingRef.current) return;
+
+    const hit = document.elementFromPoint(event.clientX, event.clientY);
+    const card = hit?.closest("[data-image-id]");
+    if (!(card instanceof HTMLElement)) return;
+
+    const id = Number(card.dataset.imageId);
+    if (!Number.isFinite(id) || id === lastDragImageIdRef.current) return;
+
+    lastDragImageIdRef.current = id;
+
+    const target = images.find((image) => image.id === id);
+    if (target) addDeleteTarget(target);
+  }
+
+  // React의 onTouchMove는 passive라 preventDefault가 안 먹기 때문에 document에 직접 등록
+  function preventScrollWhileDragging(event: TouchEvent) {
+    if (dragSelectingRef.current) event.preventDefault();
+  }
+
+  function endDragSelect() {
+    dragSelectingRef.current = false;
+    lastDragImageIdRef.current = null;
+
+    if (gridRef.current) {
+      gridRef.current.style.touchAction = "";
+    }
+
+    document.removeEventListener("pointermove", handleDragPointerMove);
+    document.removeEventListener("pointerup", endDragSelect);
+    document.removeEventListener("pointercancel", endDragSelect);
+    document.removeEventListener("touchmove", preventScrollWhileDragging);
+    dragCleanupRef.current = null;
+  }
+
+  function beginDragSelect(startId: number) {
+    if (rangeMode) return; // 범위선택 모드와는 동시에 동작시키지 않음 (기존 rangeMode 로직 보호)
+
+    dragSelectingRef.current = true;
+    lastDragImageIdRef.current = startId;
+
+    // 모바일에서 드래그 도중 페이지가 스크롤되지 않도록
+    if (gridRef.current) {
+      gridRef.current.style.touchAction = "none";
+    }
+
+    document.addEventListener("pointermove", handleDragPointerMove);
+    document.addEventListener("pointerup", endDragSelect);
+    document.addEventListener("pointercancel", endDragSelect);
+    document.addEventListener("touchmove", preventScrollWhileDragging, { passive: false });
+
+    dragCleanupRef.current = endDragSelect;
+  }
+
   // gallery 모드에서만 동작. 포인터를 누르고 있다가 LONG_PRESS_MS를 넘기면
-  // delete 모드로 전환 + 그 사진을 바로 선택 상태로 만든다.
+  // delete 모드로 전환 + 그 사진을 바로 선택 상태로 만들고, 드래그 다중선택을 시작한다.
   function startLongPress(item: ImageItem) {
     if (mode !== "gallery") return;
 
@@ -332,6 +406,7 @@ export default function UploadPage() {
       longPressFiredRef.current = true;
       setMode("delete");
       toggleDeleteImage(item);
+      beginDragSelect(item.id);
     }, LONG_PRESS_MS);
   }
 
@@ -897,7 +972,7 @@ export default function UploadPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-3 md:grid-cols-10 gap-px bg-black">
+      <div ref={gridRef} className="grid grid-cols-3 md:grid-cols-10 gap-px bg-black">
         {images.map((item) => {
           const selected = selectedImages.includes(item.url);
           const deleteSelected = deleteTargets.includes(item.id);
@@ -915,6 +990,7 @@ export default function UploadPage() {
           return (
             <button
               key={item.id}
+              data-image-id={item.id}
               onClick={() => handleImageClick(item)}
               onPointerDown={() => startLongPress(item)}
               onPointerUp={cancelLongPress}
