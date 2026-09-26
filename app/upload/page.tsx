@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { supabase } from "@/lib/supabase/client";
@@ -17,6 +17,7 @@ type FailedUpload = {
 };
 
 const IMAGE_LIMIT = 100;
+const LONG_PRESS_MS = 500;
 
 export default function UploadPage() {
   const [images, setImages] = useState<ImageItem[]>([]);
@@ -47,6 +48,10 @@ export default function UploadPage() {
   const [deleteTargets, setDeleteTargets] = useState<number[]>([]);
   const [rangeMode, setRangeMode] = useState(false);
   const [rangeStartId, setRangeStartId] = useState<number | null>(null);
+
+  // long-press 감지용 — 리렌더가 필요 없는 값이라 상태 대신 ref로만 처리
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressFiredRef = useRef(false);
 
   const [episodePreviewMode, setEpisodePreviewMode] = useState(false);
   const [episodePreviewImages, setEpisodePreviewImages] = useState<string[]>([]);
@@ -308,7 +313,42 @@ export default function UploadPage() {
     }
   }
 
+  function clearLongPressTimer() {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  }
+
+  // gallery 모드에서만 동작. 포인터를 누르고 있다가 LONG_PRESS_MS를 넘기면
+  // delete 모드로 전환 + 그 사진을 바로 선택 상태로 만든다.
+  function startLongPress(item: ImageItem) {
+    if (mode !== "gallery") return;
+
+    clearLongPressTimer();
+    longPressFiredRef.current = false;
+
+    longPressTimerRef.current = setTimeout(() => {
+      longPressFiredRef.current = true;
+      setMode("delete");
+      toggleDeleteImage(item);
+    }, LONG_PRESS_MS);
+  }
+
+  // 포인터를 뗐거나(pointerup) 카드 밖으로 나갔거나(pointerleave/cancel) 아직 타이머가 안 터졌다면
+  // 짧은 탭이었다는 뜻이므로 그냥 취소
+  function cancelLongPress() {
+    clearLongPressTimer();
+  }
+
   function handleImageClick(item: ImageItem) {
+    // long-press로 이미 delete 모드 진입 + 선택까지 끝났다면,
+    // 뒤따라오는 이 click은 무시 (안 그러면 toggleDeleteImage가 다시 호출돼 방금 고른 게 바로 해제됨)
+    if (longPressFiredRef.current) {
+      longPressFiredRef.current = false;
+      return;
+    }
+
     if (mode === "gallery") {
       setPreviewImage(item.url);
       return;
@@ -693,6 +733,20 @@ export default function UploadPage() {
           >
             {mode === "delete" ? "삭제 완료" : "삭제"}
           </button>
+
+          {mode === "delete" && (
+            <button
+              onClick={() => {
+                resetDelete();
+                setMode("gallery");
+              }}
+              className={buttonClass}
+              aria-label="삭제 취소"
+              title="삭제 취소"
+            >
+              취소
+            </button>
+          )}
         </div>
       </div>
 
@@ -862,11 +916,17 @@ export default function UploadPage() {
             <button
               key={item.id}
               onClick={() => handleImageClick(item)}
-              className={`relative aspect-square overflow-hidden ${
+              onPointerDown={() => startLongPress(item)}
+              onPointerUp={cancelLongPress}
+              onPointerLeave={cancelLongPress}
+              onPointerCancel={cancelLongPress}
+              onContextMenu={(e) => e.preventDefault()}
+              className={`relative aspect-square overflow-hidden select-none ${
                 selected || deleteSelected || isThumbnail || isMain || isRangeStart
                   ? "ring-2 ring-inset ring-red-500"
                   : ""
               }`}
+              style={{ WebkitTouchCallout: "none" }}
             >
               <Image
                 src={item.url}
