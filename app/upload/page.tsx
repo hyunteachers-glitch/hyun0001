@@ -18,6 +18,8 @@ type FailedUpload = {
 
 const IMAGE_LIMIT = 100;
 const LONG_PRESS_MS = 400;
+const AUTO_SCROLL_EDGE_PX = 72; // 뷰포트 위/아래 이 픽셀 안쪽이면 자동 스크롤
+const AUTO_SCROLL_MAX_SPEED = 18; // 프레임당 최대 스크롤량(px), 가장자리 깊이에 비례해 줄어듦
 
 export default function UploadPage() {
   const [images, setImages] = useState<ImageItem[]>([]);
@@ -60,6 +62,12 @@ export default function UploadPage() {
   const lastDragImageIdRef = useRef<number | null>(null);
   const dragCleanupRef = useRef<(() => void) | null>(null);
 
+  // 가장자리 자동 스크롤용 — 마지막 포인터 좌표 + 현재 스크롤 속도/프레임 핸들
+  const lastPointerClientXRef = useRef(0);
+  const lastPointerClientYRef = useRef(0);
+  const autoScrollSpeedRef = useRef(0);
+  const autoScrollFrameRef = useRef<number | null>(null);
+
   const [episodePreviewMode, setEpisodePreviewMode] = useState(false);
   const [episodePreviewImages, setEpisodePreviewImages] = useState<string[]>([]);
   const [editingOrderIndex, setEditingOrderIndex] = useState<number | null>(null);
@@ -84,6 +92,10 @@ export default function UploadPage() {
     setCoverUrl("");
     setMainImageUrl("");
     setSelectMode("none");
+    // episode 모드에서 범위선택을 켠 채로 work 모드를 거쳐 gallery로 돌아오면
+    // rangeMode가 true로 남아있던 leak을 막기 위해 여기서도 초기화
+    setRangeMode(false);
+    setRangeStartId(null);
   }
 
   function resetEpisode() {
@@ -335,10 +347,12 @@ export default function UploadPage() {
     }
   }
 
-  function handleDragPointerMove(event: PointerEvent) {
+  // clientX/clientY(뷰포트 좌표)는 스크롤 여부와 무관하게 "지금 그 자리에 보이는 카드"를
+  // 항상 정확히 가리키므로, pointermove든 자동 스크롤 중이든 이 함수 하나로 재탐지한다.
+  function updateDragSelectionAtPoint(clientX: number, clientY: number) {
     if (!dragSelectingRef.current || dragStartIdRef.current === null) return;
 
-    const hit = document.elementFromPoint(event.clientX, event.clientY);
+    const hit = document.elementFromPoint(clientX, clientY);
     const card = hit?.closest("[data-image-id]");
     if (!(card instanceof HTMLElement)) return;
 
@@ -354,6 +368,62 @@ export default function UploadPage() {
     setDeleteTargets(rangeItems.map((image) => image.id));
   }
 
+  // 가장자리로부터 얼마나 깊이 들어왔는지에 비례한 스크롤 속도. 0이면 자동 스크롤 없음.
+  function getAutoScrollSpeed(clientY: number) {
+    const viewportHeight = window.innerHeight;
+
+    if (clientY < AUTO_SCROLL_EDGE_PX) {
+      const depth = (AUTO_SCROLL_EDGE_PX - clientY) / AUTO_SCROLL_EDGE_PX;
+      return -Math.ceil(depth * AUTO_SCROLL_MAX_SPEED);
+    }
+
+    if (clientY > viewportHeight - AUTO_SCROLL_EDGE_PX) {
+      const depth = (clientY - (viewportHeight - AUTO_SCROLL_EDGE_PX)) / AUTO_SCROLL_EDGE_PX;
+      return Math.ceil(depth * AUTO_SCROLL_MAX_SPEED);
+    }
+
+    return 0;
+  }
+
+  function runAutoScrollStep() {
+    if (!dragSelectingRef.current || autoScrollSpeedRef.current === 0) {
+      autoScrollFrameRef.current = null;
+      return;
+    }
+
+    window.scrollBy(0, autoScrollSpeedRef.current);
+    // 포인터가 안 움직였어도, 스크롤됐으니 같은 좌표 아래 카드는 바뀌었을 수 있다 — 재탐지
+    updateDragSelectionAtPoint(lastPointerClientXRef.current, lastPointerClientYRef.current);
+
+    autoScrollFrameRef.current = requestAnimationFrame(runAutoScrollStep);
+  }
+
+  function stopAutoScroll() {
+    if (autoScrollFrameRef.current !== null) {
+      cancelAnimationFrame(autoScrollFrameRef.current);
+      autoScrollFrameRef.current = null;
+    }
+    autoScrollSpeedRef.current = 0;
+  }
+
+  function handleDragPointerMove(event: PointerEvent) {
+    if (!dragSelectingRef.current) return;
+
+    lastPointerClientXRef.current = event.clientX;
+    lastPointerClientYRef.current = event.clientY;
+
+    updateDragSelectionAtPoint(event.clientX, event.clientY);
+
+    const speed = getAutoScrollSpeed(event.clientY);
+    autoScrollSpeedRef.current = speed;
+
+    if (speed !== 0 && autoScrollFrameRef.current === null) {
+      autoScrollFrameRef.current = requestAnimationFrame(runAutoScrollStep);
+    } else if (speed === 0) {
+      stopAutoScroll();
+    }
+  }
+
   // React의 onTouchMove는 passive라 preventDefault가 안 먹기 때문에 document에 직접 등록
   function preventScrollWhileDragging(event: TouchEvent) {
     if (dragSelectingRef.current) event.preventDefault();
@@ -363,6 +433,7 @@ export default function UploadPage() {
     dragSelectingRef.current = false;
     dragStartIdRef.current = null;
     lastDragImageIdRef.current = null;
+    stopAutoScroll();
 
     if (gridRef.current) {
       gridRef.current.style.touchAction = "";
@@ -959,19 +1030,7 @@ export default function UploadPage() {
         </div>
       )}
 
-      {mode === "delete" && (
-        <div className="mb-8 flex gap-3 flex-wrap">
-          <button
-            onClick={() => {
-              setRangeMode(!rangeMode);
-              setRangeStartId(null);
-            }}
-            className={rangeMode ? activeButtonClass : buttonClass}
-          >
-            {rangeMode ? "범위선택 중" : "범위선택"}
-          </button>
-        </div>
-      )}
+      {/* delete 모드 전용 범위선택 UI 제거 — episode 모드의 범위선택은 그대로 유지 */}
 
       <div ref={gridRef} className="grid grid-cols-3 md:grid-cols-10 gap-px bg-black">
         {images.map((item) => {
