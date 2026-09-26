@@ -168,6 +168,8 @@ function CategoryKeywordPageInner() {
 
         <div style={{ padding: isMobile ? "6px" : "9px", paddingBottom: isMobile ? "22px" : "28px" }}>
           <h2
+            className="line-clamp-1"
+            title={toon.title}
             style={{
               fontSize: isMobile ? "9px" : "15px",
               fontWeight: "bold",
