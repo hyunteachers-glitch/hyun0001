@@ -56,6 +56,7 @@ export default function UploadPage() {
   // 드래그 다중선택용 (삼성 갤러리 방식) — 그리드 컨테이너 참조 + 드래그 상태 추적
   const gridRef = useRef<HTMLDivElement>(null);
   const dragSelectingRef = useRef(false);
+  const dragStartIdRef = useRef<number | null>(null);
   const lastDragImageIdRef = useRef<number | null>(null);
   const dragCleanupRef = useRef<(() => void) | null>(null);
 
@@ -334,13 +335,8 @@ export default function UploadPage() {
     }
   }
 
-  // 드래그 중 토글이 아니라 "없으면 추가만" — 지나간 카드가 깜빡깜빡 해제되지 않게
-  function addDeleteTarget(item: ImageItem) {
-    setDeleteTargets((prev) => (prev.includes(item.id) ? prev : [...prev, item.id]));
-  }
-
   function handleDragPointerMove(event: PointerEvent) {
-    if (!dragSelectingRef.current) return;
+    if (!dragSelectingRef.current || dragStartIdRef.current === null) return;
 
     const hit = document.elementFromPoint(event.clientX, event.clientY);
     const card = hit?.closest("[data-image-id]");
@@ -351,8 +347,11 @@ export default function UploadPage() {
 
     lastDragImageIdRef.current = id;
 
-    const target = images.find((image) => image.id === id);
-    if (target) addDeleteTarget(target);
+    // rangeMode(범위선택)가 쓰는 것과 동일한 "순서 범위" 로직 재사용 —
+    // 시작 카드 ~ 지금 커서 아래 카드 사이에 낀 행이 전부 포함됨.
+    // add-only가 아니라 매번 통째로 교체 — 커서가 뒤로 가면 범위도 자연스럽게 줄어듦.
+    const rangeItems = getRangeItems(dragStartIdRef.current, id);
+    setDeleteTargets(rangeItems.map((image) => image.id));
   }
 
   // React의 onTouchMove는 passive라 preventDefault가 안 먹기 때문에 document에 직접 등록
@@ -362,6 +361,7 @@ export default function UploadPage() {
 
   function endDragSelect() {
     dragSelectingRef.current = false;
+    dragStartIdRef.current = null;
     lastDragImageIdRef.current = null;
 
     if (gridRef.current) {
@@ -379,6 +379,7 @@ export default function UploadPage() {
     if (rangeMode) return; // 범위선택 모드와는 동시에 동작시키지 않음 (기존 rangeMode 로직 보호)
 
     dragSelectingRef.current = true;
+    dragStartIdRef.current = startId;
     lastDragImageIdRef.current = startId;
 
     // 모바일에서 드래그 도중 페이지가 스크롤되지 않도록
