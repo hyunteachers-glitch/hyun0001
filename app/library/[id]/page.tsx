@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { Plus, Pencil } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 import PasswordGuard from "../../components/PasswordGuard";
 import KeywordBadge from "../../components/KeywordBadge";
@@ -845,9 +845,11 @@ function WebtoonDetailPageInner() {
               <>
                 <button
                   onClick={startEpisodeEditMode}
-                  className={episodeButtonClass}
+                  aria-label="에피소드 수정"
+                  title="에피소드 수정"
+                  className={iconButtonClass}
                 >
-                  에피소드 수정
+                  <Pencil size={24} />
                 </button>
 
                 <button
@@ -998,6 +1000,9 @@ const activeTopButtonClass =
 
 const topDeleteButtonClass =
   "border border-red-500 text-red-400 px-4 py-2 rounded-full hover:bg-red-500 hover:text-white transition whitespace-nowrap text-sm md:text-base";
+
+const iconButtonClass =
+  "p-2 rounded-full hover:bg-white hover:text-black transition";
 
 const episodeButtonClass =
   "border border-white/20 px-4 py-2 rounded-xl hover:bg-white hover:text-black transition whitespace-nowrap";
