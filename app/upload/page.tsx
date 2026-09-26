@@ -825,52 +825,57 @@ export default function UploadPage() {
 
   return (
     <PasswordGuard>
-    <main className="min-h-screen bg-black text-white px-4 md:px-8 py-8">
+    <main
+      className={`min-h-screen bg-black text-white px-4 md:px-8 pt-8 ${
+        mode === "episode" || mode === "delete" ? "pb-28" : "pb-8"
+      }`}
+    >
       <div className="flex flex-col gap-6 mb-8">
-        <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center justify-between gap-3">
           <Link href="/library" className={backButtonClass}>
             ← LIBRARY
           </Link>
 
-          <label aria-label="갤러리 추가" title="갤러리 추가" className={iconButtonClass}>
-            <Upload size={24} />
-            <input type="file" multiple onChange={handleUpload} className="hidden" />
-          </label>
+          <div className="flex items-center gap-3 md:gap-9">
+            <label aria-label="갤러리 추가" title="갤러리 추가" className={iconButtonClass}>
+              <Upload size={24} />
+              <input type="file" multiple onChange={handleUpload} className="hidden" />
+            </label>
 
-          <button
-            onClick={() => {
-              if (mode === "work") {
-                resetWork();
-                setMode("gallery");
-              } else {
-                resetWork();
-                setMode("work");
-              }
-            }}
-            aria-label="작품 생성"
-            title="작품 생성"
-            className={mode === "work" ? activeIconButtonClass : iconButtonClass}
-          >
-            <BookPlus size={24} />
-          </button>
+            <button
+              onClick={() => {
+                if (mode === "work") {
+                  resetWork();
+                  setMode("gallery");
+                } else {
+                  resetWork();
+                  setMode("work");
+                }
+              }}
+              aria-label="작품 생성"
+              title="작품 생성"
+              className={mode === "work" ? activeIconButtonClass : iconButtonClass}
+            >
+              <BookPlus size={24} />
+            </button>
 
-          <button
-            onClick={() => {
-              if (mode === "episode") {
-                resetEpisode();
-                setMode("gallery");
-              } else {
-                resetEpisode();
-                setMode("episode");
-              }
-            }}
-            aria-label="에피소드 생성"
-            title="에피소드 생성"
-            className={`group ${mode === "episode" ? activeIconButtonClass : iconButtonClass}`}
-          >
-            <EpisodeCreateIcon active={mode === "episode"} />
-          </button>
-
+            <button
+              onClick={() => {
+                if (mode === "episode") {
+                  resetEpisode();
+                  setMode("gallery");
+                } else {
+                  resetEpisode();
+                  setMode("episode");
+                }
+              }}
+              aria-label="에피소드 생성"
+              title="에피소드 생성"
+              className={`group ${mode === "episode" ? activeIconButtonClass : iconButtonClass}`}
+            >
+              <EpisodeCreateIcon active={mode === "episode"} />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -988,12 +993,6 @@ export default function UploadPage() {
             placeholder="에피소드 제목"
             className={inputClass}
           />
-
-          <div className="flex gap-3 flex-wrap">
-            <button onClick={openEpisodePreview} className={buttonClass}>
-              에피소드 만들기
-            </button>
-          </div>
         </div>
       )}
 
@@ -1076,6 +1075,29 @@ export default function UploadPage() {
           <p className="text-white/35">모든 사진을 불러왔어.</p>
         )}
       </div>
+
+      {mode === "episode" && (
+        <div className="fixed bottom-6 right-4 md:right-8 z-40 flex gap-3">
+          <button
+            onClick={() => {
+              resetEpisode();
+              setMode("gallery");
+            }}
+            className={`${buttonClass} shadow-lg shadow-black/50`}
+            aria-label="에피소드 생성 취소"
+            title="에피소드 생성 취소"
+          >
+            취소
+          </button>
+
+          <button
+            onClick={openEpisodePreview}
+            className={`${activeButtonClass} shadow-lg shadow-black/50`}
+          >
+            {selectedImages.length > 0 ? `생성 (${selectedImages.length})` : "생성"}
+          </button>
+        </div>
+      )}
 
       {mode === "delete" && (
         <div className="fixed bottom-6 right-4 md:right-8 z-40 flex gap-3">
