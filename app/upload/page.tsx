@@ -743,38 +743,16 @@ export default function UploadPage() {
     : 0;
 
   if (episodePreviewMode) {
+    const selectedWebtoonTitle =
+      webtoons.find((toon) => String(toon.id) === selectedWebtoonId)?.title || "";
+
     return (
-      <main className="min-h-screen bg-black text-white px-4 md:px-8 py-8">
-        <div className="mb-6 flex items-center justify-between gap-3 flex-wrap">
-          <div>
-            <h1 className="text-3xl md:text-5xl font-bold">에피소드 미리보기</h1>
-            <p className="text-white/50 mt-2">
-              번호를 눌러 순서를 바꾸고, 필요 없는 사진은 제거해줘.
-            </p>
-          </div>
-
-          <div className="flex gap-2 flex-wrap">
-            <button
-              onClick={() => {
-                setEpisodePreviewMode(false);
-                setEditingOrderIndex(null);
-                setOrderInput("");
-              }}
-              className={buttonClass}
-            >
-              취소
-            </button>
-
-            <button onClick={finalCreateEpisode} className={activeButtonClass}>
-              최종 생성
-            </button>
-          </div>
-        </div>
-
-        <div className="mb-6 border border-white/10 rounded-2xl p-4">
-          <p className="text-white/60 text-sm md:text-base">
-            선택된 사진 {episodePreviewImages.length}장
-          </p>
+      <main className="min-h-screen bg-black text-white px-4 md:px-8 py-8 pb-28">
+        <div className="mb-6">
+          <span className="text-base text-white">{selectedWebtoonTitle}</span>{" "}
+          <span className="text-base text-white/50">
+            ({episodePreviewImages.length}장)
+          </span>
         </div>
 
         <div className="flex flex-col gap-5 items-center">
@@ -833,6 +811,26 @@ export default function UploadPage() {
               />
             </div>
           ))}
+        </div>
+
+        <div className="fixed bottom-6 right-4 md:right-8 z-40 flex gap-3">
+          <button
+            onClick={() => {
+              setEpisodePreviewMode(false);
+              setEditingOrderIndex(null);
+              setOrderInput("");
+            }}
+            className={`${buttonClass} shadow-lg shadow-black/50`}
+          >
+            취소
+          </button>
+
+          <button
+            onClick={finalCreateEpisode}
+            className={`${activeButtonClass} shadow-lg shadow-black/50`}
+          >
+            최종 생성
+          </button>
         </div>
       </main>
     );
