@@ -867,33 +867,6 @@ export default function UploadPage() {
             에피소드 생성
           </button>
 
-          <button
-            onClick={() => {
-              if (mode === "delete") {
-                completeDelete();
-              } else {
-                resetDelete();
-                setMode("delete");
-              }
-            }}
-            className={mode === "delete" ? deleteActiveClass : deleteButtonClass}
-          >
-            {mode === "delete" ? "삭제 완료" : "삭제"}
-          </button>
-
-          {mode === "delete" && (
-            <button
-              onClick={() => {
-                resetDelete();
-                setMode("gallery");
-              }}
-              className={buttonClass}
-              aria-label="삭제 취소"
-              title="삭제 취소"
-            >
-              취소
-            </button>
-          )}
         </div>
       </div>
 
@@ -1117,6 +1090,29 @@ export default function UploadPage() {
         )}
       </div>
 
+      {mode === "delete" && (
+        <div className="fixed bottom-6 right-4 md:right-8 z-40 flex gap-3">
+          <button
+            onClick={() => {
+              resetDelete();
+              setMode("gallery");
+            }}
+            className={`${buttonClass} shadow-lg shadow-black/50`}
+            aria-label="삭제 취소"
+            title="삭제 취소"
+          >
+            취소
+          </button>
+
+          <button
+            onClick={completeDelete}
+            className={`${deleteActiveClass} shadow-lg shadow-black/50`}
+          >
+            {deleteTargets.length > 0 ? `삭제 (${deleteTargets.length})` : "삭제 완료"}
+          </button>
+        </div>
+      )}
+
       {showUploadModal && (
         <div className="fixed inset-0 z-[9999] bg-black/70 flex items-center justify-center p-5">
           <div className="w-full max-w-sm bg-black border border-white/20 rounded-2xl p-6 flex flex-col gap-4">
@@ -1203,9 +1199,6 @@ const buttonClass =
 
 const activeButtonClass =
   "border border-white px-5 py-3 rounded-full bg-white text-black cursor-pointer text-base transition";
-
-const deleteButtonClass =
-  "border border-red-500 px-5 py-3 rounded-full bg-black text-red-400 cursor-pointer text-base hover:bg-red-500 hover:text-white transition";
 
 const deleteActiveClass =
   "border border-red-500 px-5 py-3 rounded-full bg-red-500 text-white cursor-pointer text-base transition";
