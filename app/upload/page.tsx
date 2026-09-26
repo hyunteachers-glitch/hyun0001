@@ -171,26 +171,41 @@ export default function UploadPage() {
     accessToken: string
   ): Promise<{ ok: true; url: string } | { ok: false; reason: string }> {
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const response = await fetch("/api/upload-r2", {
+      // ① 서버에서 presigned URL 발급 (작은 JSON 요청이라 4.5MB 제한과 무관)
+      const presignResponse = await fetch("/api/upload-r2-presign", {
         method: "POST",
-        headers: { Authorization: `Bearer ${accessToken}` },
-        body: formData,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ fileName: file.name }),
       });
 
-      const result = await response.json().catch(() => null);
+      const presignResult = await presignResponse.json().catch(() => null);
 
-      if (!response.ok) {
-        return { ok: false, reason: result?.error || `업로드 실패 (${response.status})` };
+      if (!presignResponse.ok) {
+        return {
+          ok: false,
+          reason: presignResult?.error || `업로드 URL 발급 실패 (${presignResponse.status})`,
+        };
       }
 
-      if (!result?.url) {
-        return { ok: false, reason: "서버 응답에 URL이 없어." };
+      if (!presignResult?.uploadUrl || !presignResult?.publicUrl) {
+        return { ok: false, reason: "서버 응답에 업로드 URL이 없어." };
       }
 
-      return { ok: true, url: result.url as string };
+      // ② 발급받은 URL로 브라우저가 R2에 직접 PUT — 서버(Vercel Function)를 거치지 않음
+      const putResponse = await fetch(presignResult.uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": file.type || "application/octet-stream" },
+        body: file,
+      });
+
+      if (!putResponse.ok) {
+        return { ok: false, reason: `R2 업로드 실패 (${putResponse.status})` };
+      }
+
+      return { ok: true, url: presignResult.publicUrl as string };
     } catch (error) {
       return {
         ok: false,
