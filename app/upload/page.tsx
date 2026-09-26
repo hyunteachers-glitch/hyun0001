@@ -998,6 +998,7 @@ export default function UploadPage() {
               onPointerLeave={cancelLongPress}
               onPointerCancel={cancelLongPress}
               onContextMenu={(e) => e.preventDefault()}
+              onDragStart={(e) => e.preventDefault()}
               className={`relative aspect-square overflow-hidden select-none ${
                 selected || deleteSelected || isThumbnail || isMain || isRangeStart
                   ? "ring-2 ring-inset ring-red-500"
@@ -1011,6 +1012,7 @@ export default function UploadPage() {
                 fill
                 sizes="(max-width: 768px) 33vw, 10vw"
                 loading="lazy"
+                draggable={false}
                 className="object-cover"
               />
 
