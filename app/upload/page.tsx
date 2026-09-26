@@ -843,7 +843,7 @@ export default function UploadPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-3 md:grid-cols-10 gap-2 md:gap-3">
+      <div className="grid grid-cols-3 md:grid-cols-10 gap-px bg-black">
         {images.map((item) => {
           const selected = selectedImages.includes(item.url);
           const deleteSelected = deleteTargets.includes(item.id);
@@ -862,10 +862,10 @@ export default function UploadPage() {
             <button
               key={item.id}
               onClick={() => handleImageClick(item)}
-              className={`relative aspect-square overflow-hidden rounded-xl border ${
+              className={`relative aspect-square overflow-hidden ${
                 selected || deleteSelected || isThumbnail || isMain || isRangeStart
-                  ? "border-red-500 border-2"
-                  : "border-white/15"
+                  ? "ring-2 ring-inset ring-red-500"
+                  : ""
               }`}
             >
               <Image
