@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Plus, Pencil } from "lucide-react";
+import { Plus, PencilLine } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 import PasswordGuard from "../../components/PasswordGuard";
 import KeywordBadge from "../../components/KeywordBadge";
@@ -838,31 +838,33 @@ function WebtoonDetailPageInner() {
 
       <section>
         <div className="flex items-center justify-between gap-4 mb-6 flex-wrap">
-          <h2 className="text-3xl font-bold">EPISODES</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-3xl font-bold">EPISODES</h2>
+
+            {!episodeEditMode && (
+              <button
+                onClick={startEpisodeEditMode}
+                aria-label="에피소드 수정"
+                title="에피소드 수정"
+                className={iconButtonClass}
+              >
+                <PencilLine size={24} />
+              </button>
+            )}
+          </div>
 
           <div className="flex items-center gap-2 flex-wrap justify-end">
             {!episodeEditMode && (
-              <>
-                <button
-                  onClick={startEpisodeEditMode}
-                  aria-label="에피소드 수정"
-                  title="에피소드 수정"
-                  className={iconButtonClass}
-                >
-                  <Pencil size={24} />
-                </button>
-
-                <button
-                  onClick={() =>
-                    setEpisodeSortOrder((prev) =>
-                      prev === "asc" ? "desc" : "asc"
-                    )
-                  }
-                  className={episodeButtonClass}
-                >
-                  {episodeSortOrder === "asc" ? "오름차순" : "내림차순"}
-                </button>
-              </>
+              <button
+                onClick={() =>
+                  setEpisodeSortOrder((prev) =>
+                    prev === "asc" ? "desc" : "asc"
+                  )
+                }
+                className={episodeSortButtonClass}
+              >
+                {episodeSortOrder === "asc" ? "오름차순" : "내림차순"}
+              </button>
             )}
 
             {episodeEditMode && (
@@ -1006,6 +1008,9 @@ const iconButtonClass =
 
 const episodeButtonClass =
   "border border-white/20 px-4 py-2 rounded-xl hover:bg-white hover:text-black transition whitespace-nowrap";
+
+const episodeSortButtonClass =
+  "px-4 py-2 rounded-xl hover:bg-white hover:text-black transition whitespace-nowrap";
 
 const episodeActiveButtonClass =
   "border border-white px-4 py-2 rounded-xl bg-white text-black transition whitespace-nowrap";
