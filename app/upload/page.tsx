@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Upload, BookPlus, ListVideo } from "lucide-react";
+import { Upload, BookPlus, LayoutPanelTop, CirclePlus } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 import PasswordGuard from "../components/PasswordGuard";
 import type { ImageItem, Webtoon } from "@/lib/types";
@@ -866,9 +866,9 @@ export default function UploadPage() {
             }}
             aria-label="에피소드 생성"
             title="에피소드 생성"
-            className={mode === "episode" ? activeIconButtonClass : iconButtonClass}
+            className={`group ${mode === "episode" ? activeIconButtonClass : iconButtonClass}`}
           >
-            <ListVideo size={24} />
+            <EpisodeCreateIcon active={mode === "episode"} />
           </button>
 
         </div>
@@ -1186,6 +1186,26 @@ const buttonClass =
 
 const activeButtonClass =
   "border border-white px-5 py-3 rounded-full bg-white text-black cursor-pointer text-base transition";
+
+function EpisodeCreateIcon({ active }: { active: boolean }) {
+  return (
+    <span className="relative inline-block w-[18px] h-[24px] align-middle">
+      <LayoutPanelTop
+        width={18}
+        height={24}
+        preserveAspectRatio="none"
+        className="[&_rect]:[vector-effect:non-scaling-stroke]"
+      />
+      <CirclePlus
+        size={13}
+        strokeWidth={2.5}
+        className={`absolute -right-1.5 -bottom-1 ${
+          active ? "fill-white" : "fill-black group-hover:fill-white"
+        }`}
+      />
+    </span>
+  );
+}
 
 const backButtonClass =
   "px-4 py-2 rounded-full hover:bg-white hover:text-black transition whitespace-nowrap text-sm md:text-base";
