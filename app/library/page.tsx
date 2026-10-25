@@ -4,12 +4,9 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Home, Plus, Trash2, Hash, HardDrive, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { Home, Plus, Trash2, Hash, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 import PasswordGuard from "../components/PasswordGuard";
-import StorageModal from "../components/StorageModal";
-import { useSession } from "@/lib/useSession";
-import { ADMIN_EMAIL } from "@/lib/constants";
 import type { Webtoon, Episode } from "@/lib/types";
 
 const SEARCH_DEBOUNCE_MS = 300;
@@ -32,10 +29,6 @@ function LibraryPageInner() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-
-  const { session } = useSession();
-  const isAdmin = session?.user.email?.toLowerCase() === ADMIN_EMAIL;
-  const [showStorage, setShowStorage] = useState(false);
 
   const [webtoons, setWebtoons] = useState<Webtoon[]>([]);
   const [episodeCounts, setEpisodeCounts] = useState<Record<number, number>>({});
@@ -344,18 +337,6 @@ function LibraryPageInner() {
             <Plus size={24} />
           </Link>
 
-          {isAdmin && (
-            <button
-              type="button"
-              onClick={() => setShowStorage(true)}
-              aria-label="저장공간"
-              title="저장공간"
-              className="p-2 rounded-full hover:bg-white hover:text-black transition"
-            >
-              <HardDrive size={24} />
-            </button>
-          )}
-
           <Link
             href="/library/trash"
             aria-label="휴지통"
@@ -485,8 +466,6 @@ function LibraryPageInner() {
           <ChevronsRight size={18} />
         </button>
       </div>
-
-      {isAdmin && showStorage && <StorageModal onClose={() => setShowStorage(false)} />}
     </main>
     </PasswordGuard>
   );

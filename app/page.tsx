@@ -5,6 +5,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
 import { useSession } from "@/lib/useSession";
 import { ADMIN_EMAIL } from "@/lib/constants";
+import StorageModal from "./components/StorageModal";
 
 export default function HomePage() {
   const { session } = useSession();
@@ -17,6 +18,8 @@ export default function HomePage() {
   const [changeMode, setChangeMode] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+
+  const [showStorage, setShowStorage] = useState(false);
 
   useEffect(() => {
     checkTodayAccess();
@@ -206,6 +209,15 @@ export default function HomePage() {
         >
           비밀번호 수정
         </button>
+
+        {isAdmin && (
+          <button
+            onClick={() => setShowStorage(true)}
+            className="md:col-span-2 border border-white/40 rounded-2xl py-3 text-center text-2xl hover:bg-white hover:text-black transition"
+          >
+            STORAGE
+          </button>
+        )}
       </div>
 
       {changeMode && (
@@ -234,6 +246,8 @@ export default function HomePage() {
           </button>
         </div>
       )}
+
+      {isAdmin && showStorage && <StorageModal onClose={() => setShowStorage(false)} />}
     </main>
   );
 }
