@@ -3,13 +3,20 @@
 import { Suspense, useEffect, useState } from "react";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { Plus } from "lucide-react";
 import PasswordGuard from "../../../components/PasswordGuard";
 import { supabase } from "@/lib/supabase/client";
 import { getKeywordByName, getWebtoonsByKeyword } from "@/lib/queries";
+import { useSession } from "@/lib/useSession";
+import { ADMIN_EMAIL } from "@/lib/constants";
 import type { Keyword, Webtoon, Episode } from "@/lib/types";
+import AddWorksPicker from "./AddWorksPicker";
 
 const backButtonClass =
   "px-4 py-2 rounded-full hover:bg-white hover:text-black transition whitespace-nowrap text-sm md:text-base";
+
+const iconButtonClass =
+  "p-2 rounded-full hover:bg-white hover:text-black transition";
 
 export default function CategoryKeywordPage() {
   return (
@@ -43,6 +50,10 @@ function CategoryKeywordPageInner() {
   const [episodeCounts, setEpisodeCounts] = useState<Record<number, number>>({});
   const [isMobile, setIsMobile] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [showPicker, setShowPicker] = useState(false);
+
+  const { session } = useSession();
+  const isAdmin = session?.user.email?.toLowerCase() === ADMIN_EMAIL;
 
   useEffect(() => {
     function checkMobile() {
@@ -187,6 +198,22 @@ function CategoryKeywordPageInner() {
     );
   }
 
+  if (showPicker && keyword) {
+    return (
+      <PasswordGuard>
+        <AddWorksPicker
+          keywordId={keyword.id}
+          existingIds={webtoons.map((toon) => toon.id)}
+          isMobile={isMobile}
+          onClose={(added) => {
+            setShowPicker(false);
+            if (added) load();
+          }}
+        />
+      </PasswordGuard>
+    );
+  }
+
   return (
     <PasswordGuard>
       <main className="min-h-screen bg-black text-white px-5 md:px-8 py-10 flex flex-col">
@@ -196,7 +223,23 @@ function CategoryKeywordPageInner() {
           </Link>
         </div>
 
-        <h1 className="text-3xl font-bold text-center mb-10">#{keywordName}</h1>
+        <div className="flex justify-center mb-10">
+          {/* 플러스 버튼은 absolute로 붙여서 제목 자체는 정확히 가운데 유지 */}
+          <div className="relative">
+            <h1 className="text-3xl font-bold text-center">#{keywordName}</h1>
+
+            {isAdmin && keyword && (
+              <button
+                onClick={() => setShowPicker(true)}
+                aria-label="작품 추가"
+                title="작품 추가"
+                className={`${iconButtonClass} absolute left-full top-1/2 -translate-y-1/2 ml-1`}
+              >
+                <Plus size={24} />
+              </button>
+            )}
+          </div>
+        </div>
 
         {loaded && !keyword ? (
           <div className="flex-1 flex items-center justify-center">
