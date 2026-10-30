@@ -2,13 +2,21 @@
 
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
-import { addKeywordToWebtoon } from "@/lib/queries";
+import {
+  addKeywordToWebtoon,
+  removeKeywordFromWebtoon,
+  deleteKeywordIfEmpty,
+  getActiveWorkCountForKeyword,
+} from "@/lib/queries";
 import type { Webtoon, Episode } from "@/lib/types";
 
 // 카테고리 상세 화면의 "작품 추가" 전체 화면 모드.
 // 라이브러리와 같은 카드/그리드/검색을 쓰되, 선택된 작품을 맨 위로 올려 보여준다.
-// - existingIds: 이미 이 키워드에 연결된 작품 (선택 상태 고정, 해제 불가)
-// - 새로 선택한 작품은 선택한 순서대로 existing 뒤에 쌓인다.
+// - existingIds: 이미 이 키워드에 연결된 작품 (처음부터 선택 상태, 해제하면 완료 시 연결 해제)
+// - 정렬: 새로 선택한 작품(가장 최근 선택이 맨 위) → 선택 유지 중인 기존 작품(라이브러리 최신순) → 나머지
+// - onClose 결과: "none"(변경 없음/취소) | "changed" | "deleted"(연결 해제로 키워드가 자동 삭제됨)
+export type PickerResult = "none" | "changed" | "deleted";
+
 export default function AddWorksPicker({
   keywordId,
   existingIds,
@@ -18,12 +26,15 @@ export default function AddWorksPicker({
   keywordId: number;
   existingIds: number[];
   isMobile: boolean;
-  onClose: (added: boolean) => void;
+  onClose: (result: PickerResult) => void;
 }) {
   const [allWebtoons, setAllWebtoons] = useState<Webtoon[]>([]);
   const [episodeCounts, setEpisodeCounts] = useState<Record<number, number>>({});
   const [searchInput, setSearchInput] = useState("");
+  // 새로 선택한 작품 (선택한 순서대로 push)
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  // 기존 연결 작품 중 해제한 것
+  const [removedIds, setRemovedIds] = useState<number[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   // Strict Mode 이중 실행/연타로 같은 insert가 두 번 나가지 않게 막는 가드
@@ -73,20 +84,18 @@ export default function AddWorksPicker({
   }
 
   function toggle(id: number) {
-    if (submitting || existingIds.includes(id)) return;
+    if (submitting) return;
 
-    setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((selectedId) => selectedId !== id) : [...prev, id]
+    const setter = existingIds.includes(id) ? setRemovedIds : setSelectedIds;
+    setter((prev) =>
+      prev.includes(id) ? prev.filter((prevId) => prevId !== id) : [...prev, id]
     );
   }
 
-  async function complete() {
-    const newIds = selectedIds.filter((id) => !existingIds.includes(id));
+  const hasChanges = selectedIds.length > 0 || removedIds.length > 0;
 
-    if (newIds.length === 0) {
-      onClose(false);
-      return;
-    }
+  async function complete() {
+    if (!hasChanges) return;
 
     if (submittingRef.current) return;
     submittingRef.current = true;
@@ -95,10 +104,24 @@ export default function AddWorksPicker({
 
     try {
       // addKeywordToWebtoon은 upsert(ignoreDuplicates)라 이미 연결된 건 중복 추가되지 않는다.
-      for (const id of newIds) {
+      // 추가를 먼저 해야 "기존 전부 해제 + 새로 추가"인 경우 키워드가 지워지지 않는다.
+      for (const id of selectedIds) {
         await addKeywordToWebtoon(id, keywordId);
       }
-      onClose(true);
+
+      if (removedIds.length === 0) {
+        onClose("changed");
+        return;
+      }
+
+      for (const id of removedIds) {
+        await removeKeywordFromWebtoon(id, keywordId);
+      }
+
+      // deleteKeywordIfEmpty는 남은 작품이 0개일 때만 지우므로, 그 뒤에도 0개면 삭제된 것
+      await deleteKeywordIfEmpty(keywordId);
+      const remaining = await getActiveWorkCountForKeyword(keywordId);
+      onClose(remaining === 0 ? "deleted" : "changed");
     } catch (error) {
       setErrorMessage(
         error instanceof Error
@@ -116,10 +139,14 @@ export default function AddWorksPicker({
     : allWebtoons;
 
   const byId = new Map(matched.map((toon) => [toon.id, toon]));
-  const pinnedIds = [...existingIds, ...selectedIds.filter((id) => !existingIds.includes(id))];
-  const pinnedSet = new Set(pinnedIds);
+  const keptExistingSet = new Set(existingIds.filter((id) => !removedIds.includes(id)));
+  const pinnedSet = new Set([...selectedIds, ...keptExistingSet]);
   const visibleWebtoons = [
-    ...pinnedIds.map((id) => byId.get(id)).filter((toon): toon is Webtoon => !!toon),
+    ...[...selectedIds]
+      .reverse()
+      .map((id) => byId.get(id))
+      .filter((toon): toon is Webtoon => !!toon),
+    ...matched.filter((toon) => keptExistingSet.has(toon.id)),
     ...matched.filter((toon) => !pinnedSet.has(toon.id)),
   ];
 
@@ -141,7 +168,6 @@ export default function AddWorksPicker({
   // 컴포넌트가 아니라 함수로 호출 — 선택 토글 때마다 카드가 리마운트되어 썸네일이 깜빡이지 않게
   function renderCard(toon: Webtoon) {
     const selected = pinnedSet.has(toon.id);
-    const locked = existingIds.includes(toon.id);
     const count = episodeCounts[toon.id] || 0;
 
     return (
@@ -159,7 +185,7 @@ export default function AddWorksPicker({
           boxShadow: selected ? "0 0 0 1px #22c55e" : undefined,
           background: "rgba(255,255,255,0.02)",
           color: "white",
-          cursor: locked ? "default" : "pointer",
+          cursor: "pointer",
         }}
       >
         <div style={{ width: thumbnailSize, height: thumbnailSize, overflow: "hidden" }}>
@@ -250,7 +276,7 @@ export default function AddWorksPicker({
 
       <div className="fixed bottom-6 right-4 md:right-8 z-40 flex gap-3">
         <button
-          onClick={() => onClose(false)}
+          onClick={() => onClose("none")}
           disabled={submitting}
           className={`${buttonClass} shadow-lg shadow-black/50 disabled:opacity-40 disabled:pointer-events-none`}
         >
@@ -259,8 +285,8 @@ export default function AddWorksPicker({
 
         <button
           onClick={complete}
-          disabled={submitting}
-          className={`${activeButtonClass} shadow-lg shadow-black/50 disabled:opacity-40 disabled:pointer-events-none`}
+          disabled={submitting || !hasChanges}
+          className={`${activeButtonClass} shadow-lg shadow-black/50 disabled:opacity-40 disabled:cursor-not-allowed`}
         >
           {submitting ? "추가 중..." : "완료"}
         </button>

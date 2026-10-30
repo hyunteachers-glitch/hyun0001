@@ -109,6 +109,36 @@ export async function removeKeywordFromWebtoon(
   if (error) throw error;
 }
 
+export async function renameKeyword(keywordId: number, name: string): Promise<Keyword> {
+  const trimmed = name.trim().replace(/^#+/, "").trim();
+
+  if (!trimmed) {
+    throw new Error("카테고리 이름을 입력해줘.");
+  }
+
+  const existing = await getKeywordByName(trimmed);
+  if (existing && existing.id !== keywordId) {
+    throw new Error("이미 있는 카테고리야.");
+  }
+
+  const { data, error } = await supabase
+    .from("keywords")
+    .update({ name: trimmed })
+    .eq("id", keywordId)
+    .select("*")
+    .single();
+
+  if (error) {
+    if (error.code === "23505") {
+      throw new Error("이미 있는 카테고리야.");
+    }
+
+    throw error;
+  }
+
+  return data as Keyword;
+}
+
 export async function deleteKeyword(keywordId: number): Promise<void> {
   const { error } = await supabase.from("keywords").delete().eq("id", keywordId);
 
