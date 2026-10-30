@@ -21,6 +21,7 @@ const IMAGE_LIMIT = 100;
 const LONG_PRESS_MS = 400;
 const AUTO_SCROLL_EDGE_PX = 72; // 뷰포트 위/아래 이 픽셀 안쪽이면 자동 스크롤
 const AUTO_SCROLL_MAX_SPEED = 18; // 프레임당 최대 스크롤량(px), 가장자리 깊이에 비례해 줄어듦
+const UPLOAD_CONCURRENCY = 10; // 한 번에(배치 단위로) 업로드하는 사진 수
 
 export default function UploadPage() {
   const [images, setImages] = useState<ImageItem[]>([]);
@@ -224,7 +225,7 @@ export default function UploadPage() {
     setLastUploadSummary(null);
     setUploadProgress({ completed: 0, total: tasks.length });
 
-    const chunkSize = 5;
+    const chunkSize = UPLOAD_CONCURRENCY;
     const failures: FailedUpload[] = [];
     let successCount = 0;
     let completedCount = 0;
