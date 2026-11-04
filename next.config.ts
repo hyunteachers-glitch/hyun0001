@@ -6,6 +6,7 @@ const r2Hostname = process.env.R2_PUBLIC_URL
 
 const nextConfig: NextConfig = {
   images: {
+    unoptimized: true,
     remotePatterns: r2Hostname
       ? [
           {
