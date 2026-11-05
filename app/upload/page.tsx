@@ -191,7 +191,11 @@ export default function UploadPage() {
       // ② 발급받은 URL로 브라우저가 R2에 직접 PUT — 서버(Vercel Function)를 거치지 않음
       const putResponse = await fetch(presignResult.uploadUrl, {
         method: "PUT",
-        headers: { "Content-Type": file.type || "application/octet-stream" },
+        headers: {
+          "Content-Type": file.type || "application/octet-stream",
+          // 키가 매번 새로 생성되므로(타임스탬프+UUID) 같은 주소의 내용이 바뀌지 않음 → immutable 안전
+          "Cache-Control": "public, max-age=31536000, immutable",
+        },
         body: file,
       });
 
