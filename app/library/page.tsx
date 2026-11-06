@@ -266,6 +266,8 @@ function LibraryPageInner() {
           <img
             src={toon.cover_url}
             alt=""
+            loading="lazy"
+            decoding="async"
             style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
           />
         </div>

@@ -7,6 +7,9 @@ import { supabase } from "@/lib/supabase/client";
 import PasswordGuard from "../../components/PasswordGuard";
 import type { Episode, EpisodeImage } from "@/lib/types";
 
+// 로드 전 높이가 0인 세로 이미지라 lazy만 쓰면 첫 장이 늦게 뜰 수 있어, 맨 위 몇 장은 eager
+const VIEWER_EAGER_IMAGE_COUNT = 3;
+
 export default function ViewerPage() {
   const params = useParams();
   const episodeId = Number(params.episode);
@@ -181,11 +184,14 @@ export default function ViewerPage() {
         </div>
 
         <div className="pt-14 md:pt-16 flex flex-col items-center">
-          {images.map((image) => (
+          {images.map((image, index) => (
             <img
               key={image.id}
               src={image.image_url}
               alt=""
+              // 첫 화면을 채우는 맨 위 몇 장은 즉시 로드, 나머지는 스크롤에 맞춰 지연 로드
+              loading={index < VIEWER_EAGER_IMAGE_COUNT ? "eager" : "lazy"}
+              decoding="async"
               className="w-full md:max-w-[540px] block"
             />
           ))}
