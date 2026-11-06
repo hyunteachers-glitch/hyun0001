@@ -57,9 +57,19 @@ export async function POST(request: Request) {
       expiresIn: PRESIGN_EXPIRES_SECONDS,
     });
 
+    // 썸네일 키 — lib/thumbnail.ts의 getThumbUrl 규칙과 동일: thumbs/{원본 키}.webp
+    // 원본과 같은 방식(Bucket/Key만 서명, ContentType 미서명)·같은 만료 시간.
+    const thumbKey = `thumbs/${key}.webp`;
+    const thumbUploadUrl = await getSignedUrl(
+      s3,
+      new PutObjectCommand({ Bucket: bucketName, Key: thumbKey }),
+      { expiresIn: PRESIGN_EXPIRES_SECONDS }
+    );
+
     return NextResponse.json({
       uploadUrl,
       publicUrl: `${publicUrl}/${key}`,
+      thumbUploadUrl,
     });
   } catch (error) {
     console.error("R2 presign error:", error);

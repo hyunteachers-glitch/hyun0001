@@ -4,6 +4,7 @@
 // 사용법 (프로젝트 루트에서):
 //   node scripts/check-cache-control.mjs <키 또는 공개 URL> [...]
 //   node scripts/check-cache-control.mjs --latest 5     # 가장 최근 업로드 5개 확인
+//   node scripts/check-cache-control.mjs --thumbs 5     # 가장 최근 썸네일(thumbs/) 5개 확인
 //   node scripts/check-cache-control.mjs --cors         # 버킷 CORS 설정 출력
 
 import fs from "fs";
@@ -65,12 +66,12 @@ async function head(key) {
   }
 }
 
-async function latest(n) {
+async function latest(n, prefix = "uploads/") {
   const all = [];
   let token;
   do {
     const res = await s3.send(
-      new ListObjectsV2Command({ Bucket: R2_BUCKET_NAME, Prefix: "uploads/", ContinuationToken: token })
+      new ListObjectsV2Command({ Bucket: R2_BUCKET_NAME, Prefix: prefix, ContinuationToken: token })
     );
     all.push(...(res.Contents ?? []));
     token = res.IsTruncated ? res.NextContinuationToken : undefined;
@@ -97,8 +98,13 @@ async function main() {
     return;
   }
 
+  if (args[0] === "--thumbs") {
+    await latest(Number(args[1]) || 5, "thumbs/");
+    return;
+  }
+
   if (args.length === 0) {
-    console.log("사용법: node scripts/check-cache-control.mjs <키|URL> | --latest N | --cors");
+    console.log("사용법: node scripts/check-cache-control.mjs <키|URL> | --latest N | --thumbs N | --cors");
     process.exit(1);
   }
 

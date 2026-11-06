@@ -23,6 +23,91 @@ const AUTO_SCROLL_EDGE_PX = 72; // 뷰포트 위/아래 이 픽셀 안쪽이면 
 const AUTO_SCROLL_MAX_SPEED = 18; // 프레임당 최대 스크롤량(px), 가장자리 깊이에 비례해 줄어듦
 const UPLOAD_CONCURRENCY = 10; // 한 번에(배치 단위로) 업로드하는 사진 수
 
+// 썸네일 — 400×400 정사각형, 가운데 기준 cover 크롭, webp
+const THUMB_SIZE = 400;
+const THUMB_QUALITY = 0.8;
+// 원본 업로드는 10개 동시지만, 디코딩(사진 1장당 수십 MB 비트맵)은 메모리를 많이 쓰므로
+// 썸네일 "생성"만 이 개수로 제한. 생성된 webp(수십 KB)의 PUT은 제한 없이 진행.
+const THUMB_GEN_CONCURRENCY = 2;
+
+let thumbGenActive = 0;
+const thumbGenQueue: (() => void)[] = [];
+
+async function withThumbGenSlot<T>(fn: () => Promise<T>): Promise<T> {
+  if (thumbGenActive >= THUMB_GEN_CONCURRENCY) {
+    await new Promise<void>((resolve) => thumbGenQueue.push(resolve));
+  }
+  thumbGenActive++;
+  try {
+    return await fn();
+  } finally {
+    thumbGenActive--;
+    thumbGenQueue.shift()?.();
+  }
+}
+
+async function createThumbnailBlob(file: File): Promise<Blob> {
+  return withThumbGenSlot(async () => {
+    // HEIC 등 디코딩 불가 형식이면 여기서 throw → 호출부에서 조용히 건너뜀
+    const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
+    const canvas = document.createElement("canvas");
+
+    try {
+      const { width, height } = bitmap;
+      if (!width || !height) throw new Error("이미지 크기를 읽을 수 없음");
+
+      // object-cover와 같은 모양: 짧은 변 기준 정사각형을 가운데에서 잘라냄
+      const side = Math.min(width, height);
+      const sx = (width - side) / 2;
+      const sy = (height - side) / 2;
+
+      canvas.width = THUMB_SIZE;
+      canvas.height = THUMB_SIZE;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("canvas 2d 컨텍스트 생성 실패");
+
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
+      ctx.drawImage(bitmap, sx, sy, side, side, 0, 0, THUMB_SIZE, THUMB_SIZE);
+
+      const blob = await new Promise<Blob | null>((resolve) =>
+        canvas.toBlob(resolve, "image/webp", THUMB_QUALITY)
+      );
+
+      // webp 인코딩 미지원 브라우저는 PNG 등으로 대체 인코딩하므로 type으로 확인
+      if (!blob || blob.type !== "image/webp") {
+        throw new Error("webp 인코딩 미지원");
+      }
+
+      return blob;
+    } finally {
+      bitmap.close();
+      // 캔버스 백버퍼 즉시 해제
+      canvas.width = 0;
+      canvas.height = 0;
+    }
+  });
+}
+
+// 썸네일 생성+업로드. 어떤 실패도 throw하지 않음 — 원본 업로드 결과에 영향 X
+// (빠진 썸네일은 나중에 일괄 스크립트가 채우고, 화면은 onError로 원본에 대체됨)
+async function uploadThumbnail(file: File, thumbUploadUrl: string) {
+  try {
+    const blob = await createThumbnailBlob(file);
+    const res = await fetch(thumbUploadUrl, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "image/webp",
+        "Cache-Control": "public, max-age=31536000, immutable",
+      },
+      body: blob,
+    });
+    if (!res.ok) throw new Error(`썸네일 PUT 실패 (${res.status})`);
+  } catch (error) {
+    console.warn(`[thumbnail] ${file.name} 썸네일 건너뜀:`, error);
+  }
+}
+
 export default function UploadPage() {
   const [images, setImages] = useState<ImageItem[]>([]);
   const [webtoons, setWebtoons] = useState<WebtoonItem[]>([]);
@@ -201,6 +286,11 @@ export default function UploadPage() {
 
       if (!putResponse.ok) {
         return { ok: false, reason: `R2 업로드 실패 (${putResponse.status})` };
+      }
+
+      // ③ 원본 성공 후 썸네일 생성+업로드 — 실패해도 원본은 성공 처리(내부에서 예외를 삼킴)
+      if (typeof presignResult.thumbUploadUrl === "string" && presignResult.thumbUploadUrl) {
+        await uploadThumbnail(file, presignResult.thumbUploadUrl);
       }
 
       return { ok: true, url: presignResult.publicUrl as string };
