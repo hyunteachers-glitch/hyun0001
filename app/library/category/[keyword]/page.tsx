@@ -10,6 +10,7 @@ import { getKeywordByName, getWebtoonsByKeyword, renameKeyword } from "@/lib/que
 import { useSession } from "@/lib/useSession";
 import { ADMIN_EMAIL } from "@/lib/constants";
 import type { Keyword, Webtoon, Episode } from "@/lib/types";
+import { getThumbUrl, createThumbFallback } from "@/lib/thumbnail";
 import AddWorksPicker, { type PickerResult } from "./AddWorksPicker";
 
 const backButtonClass =
@@ -238,7 +239,8 @@ function CategoryKeywordPageInner() {
       >
         <div style={{ width: thumbnailSize, height: thumbnailSize, overflow: "hidden" }}>
           <img
-            src={toon.cover_url}
+            src={getThumbUrl(toon.cover_url)}
+            onError={createThumbFallback(toon.cover_url)}
             alt=""
             loading="lazy"
             decoding="async"

@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase/client";
 import PasswordGuard from "../../components/PasswordGuard";
 import { deleteKeywordIfEmpty } from "@/lib/queries";
 import type { Webtoon } from "@/lib/types";
+import { getThumbUrl, createThumbFallback } from "@/lib/thumbnail";
 
 export default function LibraryTrashPage() {
   const [trashWebtoons, setTrashWebtoons] = useState<Webtoon[]>([]);
@@ -158,7 +159,8 @@ export default function LibraryTrashPage() {
       >
         <div style={{ width: thumbnailSize, height: thumbnailSize, overflow: "hidden" }}>
           <img
-            src={toon.cover_url}
+            src={getThumbUrl(toon.cover_url)}
+            onError={createThumbFallback(toon.cover_url)}
             alt=""
             loading="lazy"
             decoding="async"

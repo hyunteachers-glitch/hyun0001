@@ -8,6 +8,7 @@ import { Home, Plus, Trash2, Hash, ChevronLeft, ChevronRight, ChevronsLeft, Chev
 import { supabase } from "@/lib/supabase/client";
 import PasswordGuard from "../components/PasswordGuard";
 import type { Webtoon, Episode } from "@/lib/types";
+import { getThumbUrl, createThumbFallback } from "@/lib/thumbnail";
 
 const SEARCH_DEBOUNCE_MS = 300;
 
@@ -264,7 +265,8 @@ function LibraryPageInner() {
       >
         <div style={{ width: thumbnailSize, height: thumbnailSize, overflow: "hidden" }}>
           <img
-            src={toon.cover_url}
+            src={getThumbUrl(toon.cover_url)}
+            onError={createThumbFallback(toon.cover_url)}
             alt=""
             loading="lazy"
             decoding="async"

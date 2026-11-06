@@ -9,6 +9,7 @@ import {
   getActiveWorkCountForKeyword,
 } from "@/lib/queries";
 import type { Webtoon, Episode } from "@/lib/types";
+import { getThumbUrl, createThumbFallback } from "@/lib/thumbnail";
 
 // 카테고리 상세 화면의 "작품 추가" 전체 화면 모드.
 // 라이브러리와 같은 카드/그리드/검색을 쓰되, 선택된 작품을 맨 위로 올려 보여준다.
@@ -190,7 +191,8 @@ export default function AddWorksPicker({
       >
         <div style={{ width: thumbnailSize, height: thumbnailSize, overflow: "hidden" }}>
           <img
-            src={toon.cover_url}
+            src={getThumbUrl(toon.cover_url)}
+            onError={createThumbFallback(toon.cover_url)}
             alt=""
             loading="lazy"
             decoding="async"
