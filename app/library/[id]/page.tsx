@@ -8,6 +8,7 @@ import { supabase } from "@/lib/supabase/client";
 import PasswordGuard from "../../components/PasswordGuard";
 import KeywordBadge from "../../components/KeywordBadge";
 import { compareKeywords } from "@/lib/keywordSort";
+import { cleanTitle } from "@/lib/title";
 import {
   getKeywordsForWebtoon,
   getOrCreateKeyword,
@@ -332,7 +333,7 @@ function WebtoonDetailPageInner() {
     if (!webtoon) return false;
 
     return (
-      titleInput.trim() !== (webtoon.title || "") ||
+      cleanTitle(titleInput) !== (webtoon.title || "") ||
       descriptionInput !== (webtoon.description || "") ||
       coverInput !== (webtoon.cover_url || "") ||
       mainImageInput !== (webtoon.main_image_url || "")
@@ -342,7 +343,10 @@ function WebtoonDetailPageInner() {
   async function completeInfoEdit() {
     if (!webtoon) return;
 
-    if (!titleInput.trim()) {
+    const cleanedTitle = cleanTitle(titleInput);
+    setTitleInput(cleanedTitle);
+
+    if (!cleanedTitle) {
       alert("제목을 입력해줘.");
       return;
     }
@@ -360,7 +364,7 @@ function WebtoonDetailPageInner() {
     const { error } = await supabase
       .from("webtoons")
       .update({
-        title: titleInput.trim(),
+        title: cleanedTitle,
         description: descriptionInput,
         cover_url: coverInput,
         main_image_url: mainImageInput,

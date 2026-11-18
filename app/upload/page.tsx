@@ -7,6 +7,8 @@ import { Upload, BookPlus, LayoutPanelTop, CirclePlus } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 import PasswordGuard from "../components/PasswordGuard";
 import type { ImageItem, Webtoon } from "@/lib/types";
+import { cleanTitle } from "@/lib/title";
+import { findWebtoonByTitle } from "@/lib/queries";
 
 type WebtoonItem = Pick<Webtoon, "id" | "title">;
 
@@ -195,10 +197,6 @@ export default function UploadPage() {
 
   function resetDelete() {
     setDeleteTargets([]);
-  }
-
-  function normalizeTitle(value: string) {
-    return value.trim().toLowerCase();
   }
 
   async function getImages(reset = false) {
@@ -652,15 +650,20 @@ export default function UploadPage() {
   }
 
   async function createWork() {
-    const cleanTitle = title.trim();
+    const cleanedTitle = cleanTitle(title);
+    setTitle(cleanedTitle);
 
-    if (!cleanTitle) return alert("작품 제목을 입력해줘.");
+    if (!cleanedTitle) return alert("작품 제목을 입력해줘.");
     if (!coverUrl) return alert("썸네일을 선택해줘.");
     if (!mainImageUrl) return alert("메인사진을 선택해줘.");
 
-    const duplicate = webtoons.some(
-      (toon) => normalizeTitle(toon.title) === normalizeTitle(cleanTitle)
-    );
+    let duplicate;
+    try {
+      duplicate = await findWebtoonByTitle(cleanedTitle);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "제목 확인 중 오류가 났어.");
+      return;
+    }
 
     if (duplicate) {
       alert("이미 같은 제목의 작품이 있어.");
@@ -669,7 +672,7 @@ export default function UploadPage() {
 
     const { error } = await supabase.from("webtoons").insert([
       {
-        title: cleanTitle,
+        title: cleanedTitle,
         description: description.trim(),
         cover_url: coverUrl,
         main_image_url: mainImageUrl,
