@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Upload, BookPlus, LayoutPanelTop, CirclePlus } from "lucide-react";
@@ -22,7 +22,10 @@ type FailedUpload = {
 const IMAGE_LIMIT = 100;
 const LONG_PRESS_MS = 400;
 const AUTO_SCROLL_EDGE_PX = 72; // 뷰포트 위/아래 이 픽셀 안쪽이면 자동 스크롤
-const AUTO_SCROLL_MAX_SPEED = 18; // 프레임당 최대 스크롤량(px), 가장자리 깊이에 비례해 줄어듦
+// 자동 스크롤 속도는 "초당 px" — 프레임 간 경과 시간을 곱해서 주사율(60/120Hz)·프레임 드랍과 무관하게 일정
+const AUTO_SCROLL_MIN_SPEED = 60; // 가장자리 영역에 막 들어왔을 때(px/s)
+const AUTO_SCROLL_MAX_SPEED = 1100; // 화면 끝에 닿았을 때(px/s) — 기존 60Hz 기준 프레임당 18px과 비슷
+const AUTO_SCROLL_MAX_DT_MS = 50; // 프레임이 크게 밀려도(탭 전환 등) 한 번에 튀지 않게 상한
 const UPLOAD_CONCURRENCY = 10; // 한 번에(배치 단위로) 업로드하는 사진 수
 
 // 썸네일 — 400×400 정사각형, 가운데 기준 cover 크롭, webp
@@ -151,16 +154,31 @@ export default function UploadPage() {
   // 이번 드래그가 delete 모드(deleteTargets)용인지 episode 모드(selectedImages)용인지
   const dragKindRef = useRef<"delete" | "episode" | null>(null);
 
-  // 가장자리 자동 스크롤용 — 마지막 포인터 좌표 + 현재 스크롤 속도/프레임 핸들
+  // 드래그 프레임 루프용 — 마지막 포인터 좌표 + rAF 핸들 + 시간 기반 자동 스크롤 상태
   const lastPointerClientXRef = useRef(0);
   const lastPointerClientYRef = useRef(0);
-  const autoScrollSpeedRef = useRef(0);
-  const autoScrollFrameRef = useRef<number | null>(null);
+  const pointerDirtyRef = useRef(false); // 포인터가 움직였거나 스크롤돼서 "아래 카드"를 다시 찾아야 하는지
+  const dragFrameRef = useRef<number | null>(null);
+  const autoScrollLastTimeRef = useRef<number | null>(null);
+  const autoScrollRemainderRef = useRef(0); // 1px 미만 이동량 누적
 
   const [episodePreviewMode, setEpisodePreviewMode] = useState(false);
   const [episodePreviewImages, setEpisodePreviewImages] = useState<string[]>([]);
   const [editingOrderIndex, setEditingOrderIndex] = useState<number | null>(null);
   const [orderInput, setOrderInput] = useState("");
+
+  // 드래그 중 document 리스너/rAF 루프는 시작 시점의 클로저로 돌기 때문에,
+  // 최신 목록과 id→인덱스 맵을 ref로 들고 있어서 범위 계산을 인덱스 조회로 처리
+  const imageIndexMap = useMemo(
+    () => new Map(images.map((image, index) => [image.id, index])),
+    [images]
+  );
+  const imagesRef = useRef(images);
+  const imageIndexMapRef = useRef(imageIndexMap);
+  useLayoutEffect(() => {
+    imagesRef.current = images;
+    imageIndexMapRef.current = imageIndexMap;
+  }, [images, imageIndexMap]);
 
   useEffect(() => {
     getImages(true);
@@ -390,21 +408,21 @@ export default function UploadPage() {
   }
 
   function getRangeItems(startId: number, endId: number) {
-    const startIndex = images.findIndex((image) => image.id === startId);
-    const endIndex = images.findIndex((image) => image.id === endId);
+    const list = imagesRef.current;
+    const startIndex = imageIndexMapRef.current.get(startId) ?? -1;
+    const endIndex = imageIndexMapRef.current.get(endId) ?? -1;
 
     if (startIndex === -1 || endIndex === -1) return [];
-    if (startIndex <= endIndex) return images.slice(startIndex, endIndex + 1);
+    if (startIndex <= endIndex) return list.slice(startIndex, endIndex + 1);
 
-    return images.slice(endIndex, startIndex + 1).reverse();
+    return list.slice(endIndex, startIndex + 1).reverse();
   }
 
+  // 함수형 업데이트 — 롱프레스 타이머(0.4초 뒤 실행)처럼 오래된 클로저에서 불려도 최신 상태 기준
   function toggleEpisodeImage(item: ImageItem) {
-    if (selectedImages.includes(item.url)) {
-      setSelectedImages(selectedImages.filter((url) => url !== item.url));
-    } else {
-      setSelectedImages([...selectedImages, item.url]);
-    }
+    setSelectedImages((prev) =>
+      prev.includes(item.url) ? prev.filter((url) => url !== item.url) : [...prev, item.url]
+    );
   }
 
   // 롱프레스로 드래그 다중선택을 시작할 때만 사용 — 이미 선택돼 있으면 그대로 두고
@@ -416,11 +434,9 @@ export default function UploadPage() {
   }
 
   function toggleDeleteImage(item: ImageItem) {
-    if (deleteTargets.includes(item.id)) {
-      setDeleteTargets(deleteTargets.filter((id) => id !== item.id));
-    } else {
-      setDeleteTargets([...deleteTargets, item.id]);
-    }
+    setDeleteTargets((prev) =>
+      prev.includes(item.id) ? prev.filter((id) => id !== item.id) : [...prev, item.id]
+    );
   }
 
   function clearLongPressTimer() {
@@ -455,60 +471,95 @@ export default function UploadPage() {
     }
   }
 
-  // 가장자리로부터 얼마나 깊이 들어왔는지에 비례한 스크롤 속도. 0이면 자동 스크롤 없음.
-  function getAutoScrollSpeed(clientY: number) {
-    const viewportHeight = window.innerHeight;
+  // 가장자리로부터 얼마나 깊이 들어왔는지(0~1)에 가속 곡선(제곱)을 적용한 속도(px/s).
+  // 끝에 가까울수록 부드럽게 빨라짐. 0이면 자동 스크롤 없음.
+  function getAutoScrollSpeed(clientY: number, viewportHeight: number) {
+    let depth = 0;
+    let direction = 0;
 
     if (clientY < AUTO_SCROLL_EDGE_PX) {
-      const depth = (AUTO_SCROLL_EDGE_PX - clientY) / AUTO_SCROLL_EDGE_PX;
-      return -Math.ceil(depth * AUTO_SCROLL_MAX_SPEED);
+      depth = (AUTO_SCROLL_EDGE_PX - clientY) / AUTO_SCROLL_EDGE_PX;
+      direction = -1;
+    } else if (clientY > viewportHeight - AUTO_SCROLL_EDGE_PX) {
+      depth = (clientY - (viewportHeight - AUTO_SCROLL_EDGE_PX)) / AUTO_SCROLL_EDGE_PX;
+      direction = 1;
     }
 
-    if (clientY > viewportHeight - AUTO_SCROLL_EDGE_PX) {
-      const depth = (clientY - (viewportHeight - AUTO_SCROLL_EDGE_PX)) / AUTO_SCROLL_EDGE_PX;
-      return Math.ceil(depth * AUTO_SCROLL_MAX_SPEED);
-    }
+    if (direction === 0) return 0;
 
-    return 0;
+    const t = Math.min(1, Math.max(0, depth)); // 포인터가 창 밖으로 나가도 최대 속도로 제한
+    return direction * (AUTO_SCROLL_MIN_SPEED + (AUTO_SCROLL_MAX_SPEED - AUTO_SCROLL_MIN_SPEED) * t * t);
   }
 
-  function runAutoScrollStep() {
-    if (!dragSelectingRef.current || autoScrollSpeedRef.current === 0) {
-      autoScrollFrameRef.current = null;
+  function scheduleDragFrame() {
+    if (dragFrameRef.current === null) {
+      dragFrameRef.current = requestAnimationFrame(runDragFrame);
+    }
+  }
+
+  // 드래그 중 프레임마다 한 번만 도는 루프. 강제 리플로우를 피하려고
+  // ① 읽기(elementFromPoint, innerHeight)를 먼저 끝내고 ② 쓰기(scrollBy)는 마지막에 한 번만 한다.
+  // 이번 프레임의 스크롤 결과는 다음 프레임 읽기 단계에서(레이아웃이 정리된 상태로) 반영된다.
+  function runDragFrame(now: number) {
+    dragFrameRef.current = null;
+    if (!dragSelectingRef.current) return;
+
+    // ── 읽기 단계 ──
+    const x = lastPointerClientXRef.current;
+    const y = lastPointerClientYRef.current;
+
+    if (pointerDirtyRef.current) {
+      pointerDirtyRef.current = false;
+      updateDragSelectionAtPoint(x, y);
+    }
+
+    const speed = getAutoScrollSpeed(y, window.innerHeight);
+
+    // ── 쓰기 단계 ──
+    if (speed === 0) {
+      // 가장자리를 벗어남 — 루프 정지(다음 pointermove가 다시 깨움)
+      autoScrollLastTimeRef.current = null;
+      autoScrollRemainderRef.current = 0;
       return;
     }
 
-    window.scrollBy(0, autoScrollSpeedRef.current);
-    // 포인터가 안 움직였어도, 스크롤됐으니 같은 좌표 아래 카드는 바뀌었을 수 있다 — 재탐지
-    updateDragSelectionAtPoint(lastPointerClientXRef.current, lastPointerClientYRef.current);
+    const lastTime = autoScrollLastTimeRef.current;
+    autoScrollLastTimeRef.current = now;
 
-    autoScrollFrameRef.current = requestAnimationFrame(runAutoScrollStep);
-  }
+    if (lastTime !== null) {
+      const dt = Math.min(now - lastTime, AUTO_SCROLL_MAX_DT_MS) / 1000;
+      autoScrollRemainderRef.current += speed * dt;
 
-  function stopAutoScroll() {
-    if (autoScrollFrameRef.current !== null) {
-      cancelAnimationFrame(autoScrollFrameRef.current);
-      autoScrollFrameRef.current = null;
+      const step = Math.trunc(autoScrollRemainderRef.current);
+      if (step !== 0) {
+        autoScrollRemainderRef.current -= step;
+        window.scrollBy({ top: step, behavior: "instant" });
+        // 포인터가 안 움직였어도 스크롤됐으니 같은 좌표 아래 카드는 바뀌었을 수 있다 — 다음 프레임에 재탐지
+        pointerDirtyRef.current = true;
+      }
     }
-    autoScrollSpeedRef.current = 0;
+
+    scheduleDragFrame();
   }
 
+  function stopDragFrame() {
+    if (dragFrameRef.current !== null) {
+      cancelAnimationFrame(dragFrameRef.current);
+      dragFrameRef.current = null;
+    }
+    autoScrollLastTimeRef.current = null;
+    autoScrollRemainderRef.current = 0;
+    pointerDirtyRef.current = false;
+  }
+
+  // pointermove는 한 프레임에 여러 번 올 수 있으므로 좌표만 기록하고, 실제 처리는 프레임 루프에 맡긴다
   function handleDragPointerMove(event: PointerEvent) {
     if (!dragSelectingRef.current) return;
 
     lastPointerClientXRef.current = event.clientX;
     lastPointerClientYRef.current = event.clientY;
-
-    updateDragSelectionAtPoint(event.clientX, event.clientY);
-
-    const speed = getAutoScrollSpeed(event.clientY);
-    autoScrollSpeedRef.current = speed;
-
-    if (speed !== 0 && autoScrollFrameRef.current === null) {
-      autoScrollFrameRef.current = requestAnimationFrame(runAutoScrollStep);
-    } else if (speed === 0) {
-      stopAutoScroll();
-    }
+    pointerDirtyRef.current = true;
+    scheduleDragFrame();
   }
 
   // React의 onTouchMove는 passive라 preventDefault가 안 먹기 때문에 document에 직접 등록
@@ -521,7 +572,7 @@ export default function UploadPage() {
     dragKindRef.current = null;
     dragStartIdRef.current = null;
     lastDragImageIdRef.current = null;
-    stopAutoScroll();
+    stopDragFrame();
 
     if (gridRef.current) {
       gridRef.current.style.touchAction = "";
@@ -577,12 +628,6 @@ export default function UploadPage() {
     }, LONG_PRESS_MS);
   }
 
-  // 포인터를 뗐거나(pointerup) 카드 밖으로 나갔거나(pointerleave/cancel) 아직 타이머가 안 터졌다면
-  // 짧은 탭이었다는 뜻이므로 그냥 취소
-  function cancelLongPress() {
-    clearLongPressTimer();
-  }
-
   function handleImageClick(item: ImageItem) {
     // long-press로 이미 delete 모드 진입 + 선택까지 끝났다면,
     // 뒤따라오는 이 click은 무시 (안 그러면 toggleDeleteImage가 다시 호출돼 방금 고른 게 바로 해제됨)
@@ -609,6 +654,40 @@ export default function UploadPage() {
 
     if (mode === "delete") toggleDeleteImage(item);
   }
+
+  // 카드(React.memo)에 넘기는 핸들러는 렌더마다 새로 만들지 않고 고정 — 최신 구현은 ref로 호출.
+  // 그래야 선택이 바뀌어도 props가 바뀐 카드만 다시 그려진다.
+  const cardHandlersRef = useRef({ handleImageClick, startLongPress });
+  useLayoutEffect(() => {
+    cardHandlersRef.current = { handleImageClick, startLongPress };
+  });
+
+  const onCardClick = useCallback((item: ImageItem) => {
+    cardHandlersRef.current.handleImageClick(item);
+  }, []);
+
+  const onCardPressStart = useCallback((item: ImageItem) => {
+    cardHandlersRef.current.startLongPress(item);
+  }, []);
+
+  // 포인터를 뗐거나(pointerup) 카드 밖으로 나갔거나(pointerleave/cancel) 아직 타이머가 안 터졌다면
+  // 짧은 탭이었다는 뜻이므로 그냥 취소 (ref만 다루므로 고정 핸들러로 충분)
+  const onCardPressEnd = useCallback(() => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  }, []);
+
+  // 선택 여부 + 순번을 O(1)로 조회 (기존: 카드마다 includes/indexOf → 카드 수 × 선택 수)
+  const episodeOrderMap = useMemo(
+    () => new Map(selectedImages.map((url, index) => [url, index + 1])),
+    [selectedImages]
+  );
+  const deleteOrderMap = useMemo(
+    () => new Map(deleteTargets.map((id, index) => [id, index + 1])),
+    [deleteTargets]
+  );
 
   function startOrderEdit(index: number) {
     setEditingOrderIndex(index);
@@ -1098,10 +1177,8 @@ export default function UploadPage() {
 
       <div ref={gridRef} className="grid grid-cols-3 md:grid-cols-10 gap-px bg-black">
         {images.map((item) => {
-          const selected = selectedImages.includes(item.url);
-          const deleteSelected = deleteTargets.includes(item.id);
-          const episodeOrder = selectedImages.indexOf(item.url) + 1;
-          const deleteOrder = deleteTargets.indexOf(item.id) + 1;
+          const episodeOrder = episodeOrderMap.get(item.url) ?? 0;
+          const deleteOrder = deleteOrderMap.get(item.id) ?? 0;
           const isThumbnail = coverUrl === item.url;
           const isMain = mainImageUrl === item.url;
 
@@ -1111,51 +1188,17 @@ export default function UploadPage() {
           else if (isMain) badgeText = "메인";
 
           return (
-            <button
+            <GalleryCard
               key={item.id}
-              data-image-id={item.id}
-              onClick={() => handleImageClick(item)}
-              onPointerDown={() => startLongPress(item)}
-              onPointerUp={cancelLongPress}
-              onPointerLeave={cancelLongPress}
-              onPointerCancel={cancelLongPress}
-              onContextMenu={(e) => e.preventDefault()}
-              onDragStart={(e) => e.preventDefault()}
-              className={`relative aspect-square overflow-hidden select-none ${
-                selected || deleteSelected || isThumbnail || isMain
-                  ? "ring-2 ring-inset ring-red-500"
-                  : ""
-              }`}
-              style={{ WebkitTouchCallout: "none" }}
-            >
-              <Image
-                src={item.url}
-                alt=""
-                fill
-                sizes="(max-width: 768px) 33vw, 10vw"
-                loading="lazy"
-                draggable={false}
-                className="object-cover"
-              />
-
-              {selected && mode === "episode" && (
-                <div className="absolute top-1 right-1 w-7 h-7 bg-red-500 text-white flex items-center justify-center font-bold">
-                  {episodeOrder}
-                </div>
-              )}
-
-              {deleteSelected && mode === "delete" && (
-                <div className="absolute top-1 right-1 w-7 h-7 bg-red-500 text-white flex items-center justify-center font-bold">
-                  {deleteOrder}
-                </div>
-              )}
-
-              {badgeText && (
-                <div className="absolute right-1 bottom-1 bg-white text-black text-[10px] font-bold px-2 py-1 rounded-md">
-                  {badgeText}
-                </div>
-              )}
-            </button>
+              item={item}
+              highlighted={episodeOrder > 0 || deleteOrder > 0 || isThumbnail || isMain}
+              episodeOrder={mode === "episode" ? episodeOrder : 0}
+              deleteOrder={mode === "delete" ? deleteOrder : 0}
+              badgeText={badgeText}
+              onSelect={onCardClick}
+              onPressStart={onCardPressStart}
+              onPressEnd={onCardPressEnd}
+            />
           );
         })}
       </div>
@@ -1306,6 +1349,82 @@ const buttonClass =
 
 const activeButtonClass =
   "border border-white px-5 py-3 rounded-full bg-white text-black cursor-pointer text-base transition";
+
+type GalleryCardProps = {
+  item: ImageItem;
+  highlighted: boolean; // 빨간 ring 표시 여부
+  episodeOrder: number; // 에피소드 모드 순번 배지, 0이면 없음
+  deleteOrder: number; // 삭제 모드 순번 배지, 0이면 없음
+  badgeText: string;
+  onSelect: (item: ImageItem) => void;
+  onPressStart: (item: ImageItem) => void;
+  onPressEnd: () => void;
+};
+
+// props가 전부 원시값/고정 참조라, 드래그로 선택 범위가 바뀌어도 상태가 바뀐 카드만 다시 렌더링된다.
+const GalleryCard = memo(function GalleryCard({
+  item,
+  highlighted,
+  episodeOrder,
+  deleteOrder,
+  badgeText,
+  onSelect,
+  onPressStart,
+  onPressEnd,
+}: GalleryCardProps) {
+  return (
+    <button
+      data-image-id={item.id}
+      onClick={() => onSelect(item)}
+      onPointerDown={() => onPressStart(item)}
+      onPointerUp={onPressEnd}
+      onPointerLeave={onPressEnd}
+      onPointerCancel={onPressEnd}
+      onContextMenu={(e) => e.preventDefault()}
+      onDragStart={(e) => e.preventDefault()}
+      // min-w-0: 화면 밖 카드(content-visibility)의 기억된 크기가 그리드 열 최소폭 계산에 끼어들지 않게
+      className={`relative aspect-square min-w-0 overflow-hidden select-none ${
+        highlighted ? "ring-2 ring-inset ring-red-500" : ""
+      }`}
+      style={{
+        WebkitTouchCallout: "none",
+        // 화면 밖 카드는 레이아웃/페인트를 건너뜀. 높이는 aspect-square가 열 너비로 정하므로
+        // intrinsic size는 최소값만 둠(auto = 한 번 그려진 실제 크기를 기억)
+        contentVisibility: "auto",
+        containIntrinsicSize: "auto 1px",
+      }}
+    >
+      <Image
+        src={item.url}
+        alt=""
+        fill
+        sizes="(max-width: 768px) 33vw, 10vw"
+        loading="lazy"
+        decoding="async"
+        draggable={false}
+        className="object-cover"
+      />
+
+      {episodeOrder > 0 && (
+        <div className="absolute top-1 right-1 w-7 h-7 bg-red-500 text-white flex items-center justify-center font-bold">
+          {episodeOrder}
+        </div>
+      )}
+
+      {deleteOrder > 0 && (
+        <div className="absolute top-1 right-1 w-7 h-7 bg-red-500 text-white flex items-center justify-center font-bold">
+          {deleteOrder}
+        </div>
+      )}
+
+      {badgeText && (
+        <div className="absolute right-1 bottom-1 bg-white text-black text-[10px] font-bold px-2 py-1 rounded-md">
+          {badgeText}
+        </div>
+      )}
+    </button>
+  );
+});
 
 function EpisodeCreateIcon({ active }: { active: boolean }) {
   return (
