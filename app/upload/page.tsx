@@ -19,7 +19,21 @@ type FailedUpload = {
   uploadedUrl?: string; // R2 업로드는 성공했지만 DB insert만 실패한 경우, 재시도 시 재업로드 생략용
 };
 
-const IMAGE_LIMIT = 100;
+// 사진 목록 불러오기 장수
+// - 처음(및 업로드/삭제 후 새로고침) 보이는 장수는 모바일/PC가 다름
+// - "사진 더보기"로 추가되는 장수는 모바일/PC 공통
+const INITIAL_IMAGE_COUNT_MOBILE = 120; // 3열 × 40줄
+const INITIAL_IMAGE_COUNT_DESKTOP = 100; // 10열 × 10줄
+const LOAD_MORE_IMAGE_COUNT = 100;
+// 모바일 판정 — 그리드가 3열(grid-cols-3)로 보이는 Tailwind md(768px) 미만과 같은 기준
+const MOBILE_MEDIA_QUERY = "(max-width: 767px)";
+
+function getInitialImageCount() {
+  if (typeof window === "undefined") return INITIAL_IMAGE_COUNT_DESKTOP;
+  return window.matchMedia(MOBILE_MEDIA_QUERY).matches
+    ? INITIAL_IMAGE_COUNT_MOBILE
+    : INITIAL_IMAGE_COUNT_DESKTOP;
+}
 const LONG_PRESS_MS = 400;
 const AUTO_SCROLL_EDGE_PX = 72; // 뷰포트 위/아래 이 픽셀 안쪽이면 자동 스크롤
 // 자동 스크롤 속도는 "초당 px" — 프레임 간 경과 시간을 곱해서 주사율(60/120Hz)·프레임 드랍과 무관하게 일정
@@ -193,6 +207,39 @@ export default function UploadPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // 업로드 페이지에 있는 동안만 루트 스크롤의 overscroll 동작(당겨서 새로고침/바운스 체인)을 막는다.
+  // 떠날 때 원래 인라인 값으로 되돌려서 다른 페이지에는 영향이 없게 함.
+  useEffect(() => {
+    const html = document.documentElement;
+    const body = document.body;
+    const prevHtml = html.style.overscrollBehaviorY;
+    const prevBody = body.style.overscrollBehaviorY;
+
+    html.style.overscrollBehaviorY = "contain";
+    body.style.overscrollBehaviorY = "contain";
+
+    return () => {
+      html.style.overscrollBehaviorY = prevHtml;
+      body.style.overscrollBehaviorY = prevBody;
+    };
+  }, []);
+
+  // 드래그 선택 중 터치 스크롤/당겨서 새로고침 차단용 touchmove 리스너.
+  // 롱프레스가 터진 뒤(터치 도중)에 등록하면, 크롬 계열은 touchstart 시점에 "막을 수 있는 리스너가 없던"
+  // 터치를 끝까지 취소 불가(cancelable=false)로 보내서 preventDefault가 무시된다.
+  // 그래서 페이지에 있는 동안 non-passive로 계속 등록해 두고, 드래그 선택 중일 때만 막는다
+  // (롱프레스 전 단계에서 손가락을 움직이면 그대로 일반 스크롤).
+  useEffect(() => {
+    function preventScrollWhileDragging(event: TouchEvent) {
+      if (dragSelectingRef.current && event.cancelable) event.preventDefault();
+    }
+
+    document.addEventListener("touchmove", preventScrollWhileDragging, { passive: false });
+    return () => {
+      document.removeEventListener("touchmove", preventScrollWhileDragging);
+    };
+  }, []);
+
   function resetWork() {
     setTitle("");
     setDescription("");
@@ -222,8 +269,9 @@ export default function UploadPage() {
 
     setLoadingMore(true);
 
+    const count = reset ? getInitialImageCount() : LOAD_MORE_IMAGE_COUNT;
     const start = reset ? 0 : images.length;
-    const end = start + IMAGE_LIMIT - 1;
+    const end = start + count - 1;
 
     const { data, error } = await supabase
       .from("images")
@@ -242,7 +290,7 @@ export default function UploadPage() {
     if (reset) setImages(nextImages);
     else setImages((prev) => [...prev, ...nextImages]);
 
-    setHasMoreImages(nextImages.length === IMAGE_LIMIT);
+    setHasMoreImages(nextImages.length === count);
     setLoadingMore(false);
   }
 
@@ -562,11 +610,6 @@ export default function UploadPage() {
     scheduleDragFrame();
   }
 
-  // React의 onTouchMove는 passive라 preventDefault가 안 먹기 때문에 document에 직접 등록
-  function preventScrollWhileDragging(event: TouchEvent) {
-    if (dragSelectingRef.current) event.preventDefault();
-  }
-
   function endDragSelect() {
     dragSelectingRef.current = false;
     dragKindRef.current = null;
@@ -581,7 +624,6 @@ export default function UploadPage() {
     document.removeEventListener("pointermove", handleDragPointerMove);
     document.removeEventListener("pointerup", endDragSelect);
     document.removeEventListener("pointercancel", endDragSelect);
-    document.removeEventListener("touchmove", preventScrollWhileDragging);
     dragCleanupRef.current = null;
   }
 
@@ -591,7 +633,8 @@ export default function UploadPage() {
     dragStartIdRef.current = startId;
     lastDragImageIdRef.current = startId;
 
-    // 모바일에서 드래그 도중 페이지가 스크롤되지 않도록
+    // 보조 수단 — touch-action은 touchstart 시점에 정해져서 이미 진행 중인 터치에는 효과가 제한적.
+    // 실제 스크롤/당겨서 새로고침 차단은 상시 등록된 non-passive touchmove 리스너가 담당한다.
     if (gridRef.current) {
       gridRef.current.style.touchAction = "none";
     }
@@ -599,7 +642,6 @@ export default function UploadPage() {
     document.addEventListener("pointermove", handleDragPointerMove);
     document.addEventListener("pointerup", endDragSelect);
     document.addEventListener("pointercancel", endDragSelect);
-    document.addEventListener("touchmove", preventScrollWhileDragging, { passive: false });
 
     dragCleanupRef.current = endDragSelect;
   }
